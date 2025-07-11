@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import DraftingSettingsModal from './DraftingSettingsModal.jsx';
 
 function App() {
   const [emails, setEmails] = useState([]);
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [showDraftModal, setShowDraftModal] = useState(false);
+  const [draftPrompts, setDraftPrompts] = useState([
+    {
+      name: 'default',
+      prompt: 'Provide concise and polite email drafts.',
+    },
+  ]);
 
   useEffect(() => {
     fetch('/api/emails')
@@ -28,6 +36,7 @@ function App() {
         <div className="profile">
           <img className="avatar" src="/vite.svg" alt="Profile" />
           <span className="name">John Doe</span>
+          <button onClick={() => setShowDraftModal(true)}>Drafting Settings</button>
         </div>
       </header>
       <div className="main-container">
@@ -63,6 +72,14 @@ function App() {
           </div>
         </section>
       </div>
+      {showDraftModal && (
+        <DraftingSettingsModal
+          isOpen={showDraftModal}
+          onClose={() => setShowDraftModal(false)}
+          prompts={draftPrompts}
+          setPrompts={setDraftPrompts}
+        />
+      )}
     </div>
   );
 }
