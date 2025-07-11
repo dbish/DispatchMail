@@ -1,5 +1,5 @@
 .app {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 1rem;
   color: inherit;
@@ -28,6 +28,35 @@
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   text-align: left;
+}
+
+.main-container {
+  display: flex;
+  gap: 1rem;
+}
+
+.left-panel {
+  flex: 1;
+  border-right: 1px solid #ccc;
+  padding-right: 1rem;
+}
+
+.right-panel {
+  flex: 1;
+  padding-left: 1rem;
+}
+
+.system-input {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.tools-list {
+  list-style: none;
+  padding: 0;
+}
+.tools-list li {
+  margin-bottom: 0.25rem;
 }
 
 .email-item {
