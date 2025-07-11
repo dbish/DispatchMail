@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "api": "cd api && venv/bin/flask run --no-debugger"
+    "api": "flask --app api/api.py run --no-debugger"
   },
   "dependencies": {
     "react": "^19.1.0",
