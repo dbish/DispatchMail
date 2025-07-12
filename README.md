@@ -10,3 +10,5 @@ stored:
   previous timestamp has been recorded. Defaults to `5`.
 - `DYNAMODB_META_TABLE` &ndash; DynamoDB table that stores the last processed
   timestamp for each IMAP user. Defaults to `dmail_metadata`.
+- `DYNAMODB_USERS_TABLE` &ndash; DynamoDB table containing IMAP credentials for
+  all monitored inboxes. Defaults to `dmail_users`.

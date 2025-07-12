@@ -1,4 +1,5 @@
-from asyncio import run, wait_for
+import asyncio
+from asyncio import wait_for
 import mailparser
 import aiohttp
 import aioimaplib
@@ -9,6 +10,7 @@ from config_reader import (
     AWS_REGION,
     DYNAMODB_TABLE,
     DYNAMODB_META_TABLE,
+    DYNAMODB_USERS_TABLE,
     LOOKBACK_DAYS,
 )
 from datetime import datetime, timedelta
@@ -27,6 +29,7 @@ from email.mime.text import MIMEText
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 email_table = dynamodb.Table(DYNAMODB_TABLE)
 meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
+users_table = dynamodb.Table(DYNAMODB_USERS_TABLE)
 
 emails_to_process = []
 
@@ -58,7 +61,7 @@ def update_last_processed_date(user, dt):
         print(f"Error updating last processed date: {e}")
 
 
-def processUnread(to, user_info, body, subject, message_id, date=None):
+def processUnread(current_user, to, user_info, body, subject, message_id, date=None):
     # Handle empty user_info (from_email) gracefully
     if not user_info or len(user_info) == 0:
         name = "Unknown Sender"
@@ -99,7 +102,7 @@ def processUnread(to, user_info, body, subject, message_id, date=None):
             }
         )
         if date:
-            update_last_processed_date(USER, date)
+            update_last_processed_date(current_user, date)
     except Exception as e:
         print(f'Error saving email to DynamoDB: {e}')
 
@@ -169,6 +172,7 @@ async def imap_loop(host, user, password) -> None:
                     print('message id::::')
                     print(parsed_email.message_id)
                     processUnread(
+                        user,
                         parsed_email.to,
                         from_email,
                         parsed_email.text_plain,
@@ -186,12 +190,46 @@ async def imap_loop(host, user, password) -> None:
         imap_client.idle_done()
         await wait_for(idle_task, timeout=5)
 
-def loop_and_retry():
+async def loop_and_retry(host, user, password):
+    while True:
+        try:
+            await imap_loop(host, user, password)
+        except Exception as e:
+            print(f'Exception for {user}: {str(e)}')
+            await asyncio.sleep(5)
+
+
+async def monitor_accounts():
+    active_tasks = {}
+    while True:
+        accounts = await asyncio.to_thread(fetch_accounts)
+        for account in accounts:
+            acct_user = account.get('user')
+            if not acct_user:
+                continue
+            if acct_user not in active_tasks:
+                host = account.get('host', HOST)
+                password = account.get('password')
+                if not password:
+                    continue
+                task = asyncio.create_task(loop_and_retry(host, acct_user, password))
+                active_tasks[acct_user] = task
+                print(f'Started monitoring {acct_user}')
+        await asyncio.sleep(60)
+
+
+def fetch_accounts():
     try:
-        run(imap_loop(HOST, USER, PASSWORD))
+        response = users_table.scan()
+        return response.get('Items', [])
     except Exception as e:
-        print('Exception : ' + str(e))
-        loop_and_retry()
+        print(f'Error fetching accounts: {e}')
+        return []
+
+
+async def main():
+    await monitor_accounts()
+
 
 if __name__ == '__main__':
-    loop_and_retry()
+    asyncio.run(main())
