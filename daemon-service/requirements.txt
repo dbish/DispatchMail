@@ -11,3 +11,4 @@ multidict==6.0.4
 simplejson==3.19.2
 six==1.16.0
 yarl==1.9.4
+boto3==1.34.21

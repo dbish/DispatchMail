@@ -2,10 +2,11 @@ from asyncio import run, wait_for
 import mailparser
 import aiohttp
 import aioimaplib
-from config_reader import HOST, USER, PASSWORD
+from config_reader import HOST, USER, PASSWORD, AWS_REGION, DYNAMODB_TABLE
 import json
 from string import Template
 from email_reply_parser import EmailReplyParser
+import boto3
 
 import smtplib
 # Import the email modules we'll need
@@ -13,13 +14,17 @@ from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+# DynamoDB setup
+dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+email_table = dynamodb.Table(DYNAMODB_TABLE)
+
 emails_to_process = []
 
 # Track processed message IDs to avoid reprocessing
 processed_message_ids = set()
 
 
-def processUnread(to, user_info, body):
+def processUnread(to, user_info, body, subject, message_id, date=None):
     # Handle empty user_info (from_email) gracefully
     if not user_info or len(user_info) == 0:
         name = "Unknown Sender"
@@ -46,10 +51,28 @@ def processUnread(to, user_info, body):
     print(f'user_info: {user_info}')
     print(f'body: {body}')
 
+
+    # Store into DynamoDB
+    try:
+        email_table.put_item(
+            Item={
+                'message_id': message_id or '',
+                'subject': subject or '',
+                'to': json.dumps(to),
+                'from': json.dumps(user_info),
+                'body': all_body,
+                'date': date.isoformat() if date else ''
+            }
+        )
+    except Exception as e:
+        print(f'Error saving email to DynamoDB: {e}')
+
     emails_to_process.append({
         'to': to,
         'user_info': user_info,
-        'body': body
+        'body': body,
+        'subject': subject,
+        'message_id': message_id
     })
 
 
@@ -102,7 +125,14 @@ async def imap_loop(host, user, password) -> None:
                     print(parsed_email.text_plain)
                     print('message id::::')
                     print(parsed_email.message_id)
-                    processUnread(parsed_email.to, from_email, parsed_email.text_plain)
+                    processUnread(
+                        parsed_email.to,
+                        from_email,
+                        parsed_email.text_plain,
+                        parsed_email.subject,
+                        parsed_email.message_id,
+                        parsed_email.date
+                    )
                     print(f"Total processed messages tracked: {len(processed_message_ids)}")
                 except Exception as e:
                     print(f'Error processing individual email: {str(e)}')
