@@ -2,7 +2,16 @@ from asyncio import run, wait_for
 import mailparser
 import aiohttp
 import aioimaplib
-from config_reader import HOST, USER, PASSWORD, AWS_REGION, DYNAMODB_TABLE
+from config_reader import (
+    HOST,
+    USER,
+    PASSWORD,
+    AWS_REGION,
+    DYNAMODB_TABLE,
+    DYNAMODB_META_TABLE,
+    LOOKBACK_DAYS,
+)
+from datetime import datetime, timedelta
 import json
 from string import Template
 from email_reply_parser import EmailReplyParser
@@ -17,11 +26,36 @@ from email.mime.text import MIMEText
 # DynamoDB setup
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 email_table = dynamodb.Table(DYNAMODB_TABLE)
+meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
 
 emails_to_process = []
 
 # Track processed message IDs to avoid reprocessing
 processed_message_ids = set()
+
+
+def get_last_processed_date(user):
+    """Retrieve the last processed email timestamp for a user."""
+    try:
+        response = meta_table.get_item(Key={"user": user})
+        item = response.get("Item")
+        if item and item.get("last_processed"):
+            return datetime.fromisoformat(item["last_processed"])
+    except Exception as e:
+        print(f"Error getting last processed date: {e}")
+    return None
+
+
+def update_last_processed_date(user, dt):
+    """Store the latest processed timestamp for a user."""
+    if not dt:
+        return
+    try:
+        current = get_last_processed_date(user)
+        if not current or dt > current:
+            meta_table.put_item(Item={"user": user, "last_processed": dt.isoformat()})
+    except Exception as e:
+        print(f"Error updating last processed date: {e}")
 
 
 def processUnread(to, user_info, body, subject, message_id, date=None):
@@ -64,6 +98,8 @@ def processUnread(to, user_info, body, subject, message_id, date=None):
                 'date': date.isoformat() if date else ''
             }
         )
+        if date:
+            update_last_processed_date(USER, date)
     except Exception as e:
         print(f'Error saving email to DynamoDB: {e}')
 
@@ -86,12 +122,19 @@ async def imap_loop(host, user, password) -> None:
     await imap_client.select('INBOX')
 
     while True:
-        response = await imap_client.search('(UNSEEN)')
-        unread_uids = response.lines[0].split()
-        unread_uids = [uid.decode() for uid in unread_uids]
-        if len(unread_uids) > 0:
-            #fetch any unread
-            response = await imap_client.uid('fetch', ','.join(unread_uids), 'RFC822')
+        last_processed = get_last_processed_date(user)
+        if last_processed:
+            since_dt = last_processed
+        else:
+            since_dt = datetime.utcnow() - timedelta(days=LOOKBACK_DAYS)
+        since_str = since_dt.strftime('%d-%b-%Y')
+
+        response = await imap_client.search(f'(SINCE {since_str})')
+        search_uids = response.lines[0].split()
+        search_uids = [uid.decode() for uid in search_uids]
+        if len(search_uids) > 0:
+            # fetch any emails since the desired date
+            response = await imap_client.uid('fetch', ','.join(search_uids), 'RFC822')
             
             # start is: 2 FETCH (UID 18 RFC822 {42}
             # middle is the actual email content
