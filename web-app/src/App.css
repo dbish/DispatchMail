@@ -78,3 +78,20 @@
   display: flex;
   justify-content: space-between;
 }
+
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  max-width: 300px;
+  margin: 2rem auto;
+  gap: 0.5rem;
+}
+.onboarding input {
+  padding: 0.5rem;
+}
+.onboarding button {
+  padding: 0.5rem;
+}
+.error {
+  color: red;
+}

@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 import DraftingSettingsModal from './DraftingSettingsModal.jsx';
+import Onboarding from './Onboarding.jsx';
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(
+    localStorage.getItem('userEmail') || ''
+  );
   const [emails, setEmails] = useState([]);
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
@@ -14,6 +18,7 @@ function App() {
   ]);
 
   useEffect(() => {
+    if (!currentUser) return;
     fetch('/api/emails')
       .then((res) => res.json())
       .then((data) =>
@@ -25,9 +30,17 @@ function App() {
         )
       )
       .catch((err) => console.error('Failed to fetch emails', err));
-  }, []);
+  }, [currentUser]);
 
   const unprocessedCount = emails.filter((e) => !e.processed).length;
+
+  if (!currentUser) {
+    return (
+      <div className="app">
+        <Onboarding onComplete={setCurrentUser} />
+      </div>
+    );
+  }
 
   return (
     <div className="app">
