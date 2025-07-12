@@ -171,3 +171,25 @@ def onboard():
 
     return jsonify({'status': 'success'})
 
+
+@app.route('/api/prompt', methods=['GET', 'POST'])
+def reading_prompt():
+    """Get or update the system prompt for the reading agent."""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        prompt = data.get('prompt')
+        if not prompt:
+            return jsonify({'error': 'prompt required'}), 400
+        try:
+            meta_table.put_item(Item={'user': 'reading_prompt', 'prompt': prompt})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        return jsonify({'status': 'saved'})
+    else:
+        try:
+            resp = meta_table.get_item(Key={'user': 'reading_prompt'})
+            prompt = resp.get('Item', {}).get('prompt', '')
+            return jsonify({'prompt': prompt})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+

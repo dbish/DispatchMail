@@ -3,6 +3,7 @@ from asyncio import wait_for
 import mailparser
 import aiohttp
 import aioimaplib
+import ai_processor
 from config_reader import (
     HOST,
     USER,
@@ -180,6 +181,7 @@ async def imap_loop(host, user, password) -> None:
                         parsed_email.message_id,
                         parsed_email.date
                     )
+                    asyncio.create_task(ai_processor.handle_email(user, parsed_email))
                     print(f"Total processed messages tracked: {len(processed_message_ids)}")
                 except Exception as e:
                     print(f'Error processing individual email: {str(e)}')
