@@ -17,3 +17,12 @@ Whitelisting rules for deciding which emails are stored can be managed via the
 `/api/whitelist` endpoint. Rules are saved in the metadata table under the
 `whitelist_rules` key and may match sender addresses, subject text, or rely on
 an LLM classification.
+
+## LLM Actions
+
+When processing emails, the system's language model can perform several actions
+by returning JSON instructions:
+
+- `{"label": "LabelName"}` &ndash; apply the given Gmail label.
+- `{"draft": "Reply text"}` &ndash; store a draft reply for human review.
+- `{"archive": true}` &ndash; archive the email by removing it from the Inbox.
