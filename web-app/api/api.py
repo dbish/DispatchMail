@@ -23,6 +23,12 @@ spec_f = importlib.util.spec_from_file_location('filter_utils', filter_path)
 filter_utils = importlib.util.module_from_spec(spec_f)
 spec_f.loader.exec_module(filter_utils)
 
+# Load MCP server utilities
+mcp_path = os.path.join(BASE_DIR, 'daemon-service', 'mcp', 'server.py')
+spec_mcp = importlib.util.spec_from_file_location('mcp_server', mcp_path)
+mcp_server = importlib.util.module_from_spec(spec_mcp)
+spec_mcp.loader.exec_module(mcp_server)
+
 
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 DYNAMODB_TABLE = os.getenv('DYNAMODB_TABLE', 'dmail_emails')
@@ -256,6 +262,78 @@ def whitelist_rules():
             return jsonify({'rules': rules})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/email/<msg_id>')
+def get_email(msg_id):
+    """Return a single email by message id."""
+    try:
+        resp = email_table.get_item(Key={'message_id': msg_id})
+        item = resp.get('Item')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    if not item:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify({
+        'id': item.get('message_id'),
+        'from': json.loads(item.get('from', '[]')),
+        'subject': item.get('subject', ''),
+        'to': json.loads(item.get('to', '[]')),
+        'body': item.get('body', ''),
+        'date': item.get('date', ''),
+        'processed': item.get('processed', False),
+        'action': item.get('action', ''),
+        'draft': item.get('draft', ''),
+        'account': item.get('account', ''),
+    })
+
+
+@app.route('/api/draft', methods=['POST'])
+def save_draft():
+    """Save a draft reply without sending."""
+    data = request.get_json() or {}
+    msg_id = data.get('id')
+    draft = data.get('draft', '')
+    if not msg_id:
+        return jsonify({'error': 'id required'}), 400
+    try:
+        result = mcp_server.draft_email(msg_id, draft)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    return jsonify(result)
+
+
+@app.route('/api/label', methods=['POST'])
+def label_email():
+    """Apply a label to an email."""
+    data = request.get_json() or {}
+    msg_id = data.get('id')
+    label = data.get('label')
+    if not msg_id or not label:
+        return jsonify({'error': 'id and label required'}), 400
+    try:
+        result = mcp_server.add_label(msg_id, label)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    if 'error' in result:
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@app.route('/api/archive', methods=['POST'])
+def archive_email():
+    """Archive an email."""
+    data = request.get_json() or {}
+    msg_id = data.get('id')
+    if not msg_id:
+        return jsonify({'error': 'id required'}), 400
+    try:
+        result = mcp_server.archive_email(msg_id)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    if 'error' in result:
+        return jsonify(result), 400
+    return jsonify(result)
 
 
 @app.route('/api/send', methods=['POST'])
