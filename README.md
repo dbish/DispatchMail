@@ -26,3 +26,9 @@ by returning JSON instructions:
 - `{"label": "LabelName"}` &ndash; apply the given Gmail label.
 - `{"draft": "Reply text"}` &ndash; store a draft reply for human review.
 - `{"archive": true}` &ndash; archive the email by removing it from the Inbox.
+
+## MCP Server
+
+An optional MCP (Model Context Protocol) server exposes this functionality for
+other AIs. Tools are provided for listing emails, drafting replies, labeling,
+and archiving messages. Launch the server with `python daemon-service/mcp/server.py`.
