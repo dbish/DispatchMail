@@ -13,8 +13,8 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 TOKEN_DIR = os.getenv('GMAIL_TOKEN_DIR', os.path.join(os.path.dirname(__file__), 'gmail_tokens'))
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 DEFAULT_PROMPT = (
-    "You are an email triage agent. You may apply Gmail labels or draft a reply. "
-    "Use JSON like {'label': 'LabelName'} or {'draft': 'Reply text'} or both."
+    "You are an email triage agent. You may apply Gmail labels, archive the email, or draft a reply. "
+    "Use JSON like {'label': 'LabelName'}, {'archive': true}, or {'draft': 'Reply text'} in any combination."
 )
 
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
@@ -139,6 +139,7 @@ async def handle_email(user: str, parsed_email) -> None:
 
     label_name = data.get("label")
     draft_text = data.get("draft")
+    archive_flag = data.get("archive")
 
     if draft_text:
         try:
@@ -150,7 +151,7 @@ async def handle_email(user: str, parsed_email) -> None:
         except Exception as e:
             print(f"Failed to store draft: {e}")
 
-    if not label_name:
+    if not any([label_name, archive_flag]):
         return
 
     service = get_gmail_service(user)
@@ -158,16 +159,30 @@ async def handle_email(user: str, parsed_email) -> None:
         return
     msg_id = find_message(service, parsed_email.message_id)
     if not msg_id:
-        print("Could not find Gmail message to label")
+        print("Could not find Gmail message to modify")
         return
-    label_id = ensure_label(service, label_name)
-    if not label_id:
-        return
-    try:
-        service.users().messages().modify(
-            userId="me", id=msg_id, body={"addLabelIds": [label_id]}
-        ).execute()
-        print(f"Applied label '{label_name}' to message {parsed_email.message_id}")
-        record_action(parsed_email.message_id, f"added label '{label_name}'")
-    except Exception as e:
-        print(f"Failed to label message: {e}")
+
+    if label_name:
+        label_id = ensure_label(service, label_name)
+        if not label_id:
+            return
+        try:
+            service.users().messages().modify(
+                userId="me", id=msg_id, body={"addLabelIds": [label_id]}
+            ).execute()
+            print(
+                f"Applied label '{label_name}' to message {parsed_email.message_id}"
+            )
+            record_action(parsed_email.message_id, f"added label '{label_name}'")
+        except Exception as e:
+            print(f"Failed to label message: {e}")
+
+    if archive_flag:
+        try:
+            service.users().messages().modify(
+                userId="me", id=msg_id, body={"removeLabelIds": ["INBOX"]}
+            ).execute()
+            print(f"Archived message {parsed_email.message_id}")
+            record_action(parsed_email.message_id, "archived")
+        except Exception as e:
+            print(f"Failed to archive message: {e}")
