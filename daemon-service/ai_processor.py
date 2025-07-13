@@ -7,7 +7,7 @@ import openai
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import boto3
-from config_reader import AWS_REGION, DYNAMODB_META_TABLE
+from config_reader import AWS_REGION, DYNAMODB_META_TABLE, DYNAMODB_TABLE
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 TOKEN_DIR = os.getenv('GMAIL_TOKEN_DIR', os.path.join(os.path.dirname(__file__), 'gmail_tokens'))
@@ -20,6 +20,7 @@ DEFAULT_PROMPT = (
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 openai.api_key = OPENAI_API_KEY
 meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
+email_table = dynamodb.Table(DYNAMODB_TABLE)
 
 
 def get_prompt() -> str:
@@ -78,6 +79,18 @@ def find_message(service, rfc822_msgid: str) -> Optional[str]:
         return None
 
 
+def record_action(message_id: str, action: str) -> None:
+    """Mark an email as processed and store the action taken."""
+    try:
+        email_table.update_item(
+            Key={"message_id": message_id},
+            UpdateExpression="SET processed = :p, action = :a",
+            ExpressionAttributeValues={":p": True, ":a": action},
+        )
+    except Exception as e:
+        print(f"Error updating email {message_id}: {e}")
+
+
 async def handle_email(user: str, parsed_email) -> None:
     if not OPENAI_API_KEY:
         print("OPENAI_API_KEY not set, skipping AI processing")
@@ -128,5 +141,6 @@ async def handle_email(user: str, parsed_email) -> None:
             userId="me", id=msg_id, body={"addLabelIds": [label_id]}
         ).execute()
         print(f"Applied label '{label_name}' to message {parsed_email.message_id}")
+        record_action(parsed_email.message_id, f"added label '{label_name}'")
     except Exception as e:
         print(f"Failed to label message: {e}")

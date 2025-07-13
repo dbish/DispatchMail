@@ -84,6 +84,8 @@ def process_email(current_user, parsed_email):
                 "from": json.dumps(from_email),
                 "body": body,
                 "date": parsed_email.date.isoformat() if parsed_email.date else "",
+                "processed": False,
+                "action": "",
             }
         )
         if parsed_email.date:
@@ -138,7 +140,9 @@ def get_emails():
                 'subject': item.get('subject', ''),
                 'to': json.loads(item.get('to', '[]')),
                 'body': item.get('body', ''),
-                'date': item.get('date', '')
+                'date': item.get('date', ''),
+                'processed': item.get('processed', False),
+                'action': item.get('action', '')
             })
         return jsonify(emails)
     except Exception as e:

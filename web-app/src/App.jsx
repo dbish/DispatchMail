@@ -21,14 +21,7 @@ function App() {
     if (!currentUser) return;
     fetch('/api/emails')
       .then((res) => res.json())
-      .then((data) =>
-        setEmails(
-          data.map((email) => ({
-            ...email,
-            processed: false,
-          }))
-        )
-      )
+      .then((data) => setEmails(data))
       .catch((err) => console.error('Failed to fetch emails', err));
   }, [currentUser]);
 
@@ -72,14 +65,20 @@ function App() {
           <h2>Inbox ({unprocessedCount})</h2>
           <div className="email-list">
             {emails.map((email) => (
-              <div key={email.id} className="email-item">
+              <div
+                key={email.id}
+                className={`email-item ${email.processed ? 'processed' : 'unprocessed'}`}
+              >
                 <div className="subject">{email.subject}</div>
                 <div className="meta">
                   <span className="from">{email.from}</span>
                   <span className="timestamp">
-                    {new Date(email.timestamp * 1000).toLocaleString()}
+                    {new Date(email.date).toLocaleString()}
                   </span>
                 </div>
+                {email.processed && (
+                  <div className="email-action">Action: {email.action || 'none'}</div>
+                )}
               </div>
             ))}
           </div>
