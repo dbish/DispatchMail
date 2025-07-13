@@ -25,6 +25,7 @@ import smtplib
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import filter_utils
 
 # DynamoDB setup
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
@@ -151,7 +152,13 @@ async def imap_loop(host, user, password) -> None:
             for start, middle, _end in zip(iterator, iterator, iterator):
                 try:
                     parsed_email = mailparser.parse_from_bytes(middle)
-                    
+
+                    # Apply whitelist filtering
+                    allow = await asyncio.to_thread(filter_utils.should_store, parsed_email)
+                    if not allow:
+                        print("Email filtered by whitelist rules")
+                        continue
+
                     # Check if we've already processed this message
                     message_id = parsed_email.message_id
                     if message_id in processed_message_ids:
