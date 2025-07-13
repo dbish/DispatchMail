@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import DraftingSettingsModal from './DraftingSettingsModal.jsx';
 import WhitelistSettingsModal from './WhitelistSettingsModal.jsx';
+import EmailDraftModal from './EmailDraftModal.jsx';
 import Onboarding from './Onboarding.jsx';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
       prompt: 'Provide concise and polite email drafts.',
     },
   ]);
+  const [selectedDraft, setSelectedDraft] = useState(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -26,6 +28,15 @@ function App() {
       .then((data) => setEmails(data))
       .catch((err) => console.error('Failed to fetch emails', err));
   }, [currentUser]);
+
+  useEffect(() => {
+    fetch('/api/draft_prompt')
+      .then((res) => res.json())
+      .then((data) =>
+        setDraftPrompts([{ name: 'default', prompt: data.prompt || '' }])
+      )
+      .catch(() => {});
+  }, []);
 
   const unprocessedCount = emails.filter((e) => !e.processed).length;
 
@@ -61,7 +72,7 @@ function App() {
           <ul className="tools-list">
             <li>labelemail</li>
             <li>archiveemail</li>
-            <li>draftreply</li>
+            <li>draftemail</li>
           </ul>
         </aside>
         <section className="right-panel">
@@ -85,6 +96,26 @@ function App() {
               </div>
             ))}
           </div>
+          <h2>Awaiting Human</h2>
+          <div className="email-list">
+            {emails
+              .filter((e) => e.draft && !e.processed)
+              .map((email) => (
+                <div
+                  key={email.id}
+                  className="email-item"
+                  onClick={() => setSelectedDraft(email)}
+                >
+                  <div className="subject">{email.subject}</div>
+                  <div className="meta">
+                    <span className="from">{email.from}</span>
+                    <span className="timestamp">
+                      {new Date(email.date).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+          </div>
         </section>
       </div>
       {showDraftModal && (
@@ -99,6 +130,23 @@ function App() {
         <WhitelistSettingsModal
           isOpen={showWhitelistModal}
           onClose={() => setShowWhitelistModal(false)}
+        />
+      )}
+      {selectedDraft && (
+        <EmailDraftModal
+          isOpen={!!selectedDraft}
+          onClose={() => setSelectedDraft(null)}
+          email={selectedDraft}
+          onSend={async (text) => {
+            await fetch('/api/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: selectedDraft.id, draft: text }),
+            });
+            setSelectedDraft(null);
+            const data = await (await fetch('/api/emails')).json();
+            setEmails(data);
+          }}
         />
       )}
     </div>

@@ -13,8 +13,8 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 TOKEN_DIR = os.getenv('GMAIL_TOKEN_DIR', os.path.join(os.path.dirname(__file__), 'gmail_tokens'))
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 DEFAULT_PROMPT = (
-    "You are an email triage agent. Decide if a Gmail label should be applied. "
-    "Respond with JSON like {'label': \"LabelName\"} or {'label': null}."
+    "You are an email triage agent. You may apply Gmail labels or draft a reply. "
+    "Use JSON like {'label': 'LabelName'} or {'draft': 'Reply text'} or both."
 )
 
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
@@ -33,6 +33,18 @@ def get_prompt() -> str:
     except Exception as e:
         print(f"Error fetching prompt: {e}")
     return DEFAULT_PROMPT
+
+
+def get_draft_prompt() -> str:
+    """Fetch the drafting prompt from DynamoDB or provide a default."""
+    try:
+        resp = meta_table.get_item(Key={"user": "draft_prompt"})
+        item = resp.get("Item")
+        if item and item.get("prompt"):
+            return item["prompt"]
+    except Exception as e:
+        print(f"Error fetching draft prompt: {e}")
+    return "Write a concise and professional reply to the email."
 
 
 def get_gmail_service(user: str):
@@ -103,7 +115,10 @@ async def handle_email(user: str, parsed_email) -> None:
         return openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": get_prompt()},
+                {
+                    "role": "system",
+                    "content": f"{get_prompt()}\nDrafting instructions: {get_draft_prompt()}",
+                },
                 {"role": "user", "content": content},
             ],
             temperature=0,
@@ -123,6 +138,18 @@ async def handle_email(user: str, parsed_email) -> None:
         return
 
     label_name = data.get("label")
+    draft_text = data.get("draft")
+
+    if draft_text:
+        try:
+            email_table.update_item(
+                Key={"message_id": parsed_email.message_id},
+                UpdateExpression="SET draft = :d",
+                ExpressionAttributeValues={":d": draft_text},
+            )
+        except Exception as e:
+            print(f"Failed to store draft: {e}")
+
     if not label_name:
         return
 
