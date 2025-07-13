@@ -99,7 +99,9 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
                 'to': json.dumps(to),
                 'from': json.dumps(user_info),
                 'body': all_body,
-                'date': date.isoformat() if date else ''
+                'date': date.isoformat() if date else '',
+                'processed': False,
+                'action': ''
             }
         )
         if date:

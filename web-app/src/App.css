@@ -67,6 +67,15 @@
   border-bottom: 1px solid #ccc;
   padding: 0.5rem 0;
 }
+.email-item.processed {
+  background-color: #f2f2f2;
+  color: #666;
+}
+.email-action {
+  font-size: 0.75rem;
+  color: #006400;
+  margin-top: 0.25rem;
+}
 
 .subject {
   font-weight: bold;
