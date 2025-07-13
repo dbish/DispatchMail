@@ -6,6 +6,8 @@ import imaplib
 import threading
 import importlib.util
 from datetime import datetime, timedelta
+import smtplib
+from email.message import EmailMessage
 
 import boto3
 from flask import Flask, jsonify, request
@@ -94,6 +96,8 @@ def process_email(current_user, parsed_email):
                 "date": parsed_email.date.isoformat() if parsed_email.date else "",
                 "processed": False,
                 "action": "",
+                "draft": "",
+                "account": current_user,
             }
         )
         if parsed_email.date:
@@ -150,7 +154,9 @@ def get_emails():
                 'body': item.get('body', ''),
                 'date': item.get('date', ''),
                 'processed': item.get('processed', False),
-                'action': item.get('action', '')
+                'action': item.get('action', ''),
+                'draft': item.get('draft', ''),
+                'account': item.get('account', ''),
             })
         return jsonify(emails)
     except Exception as e:
@@ -206,6 +212,28 @@ def reading_prompt():
             return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/draft_prompt', methods=['GET', 'POST'])
+def draft_prompt():
+    """Get or update the drafting system prompt."""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        prompt = data.get('prompt')
+        if not prompt:
+            return jsonify({'error': 'prompt required'}), 400
+        try:
+            meta_table.put_item(Item={'user': 'draft_prompt', 'prompt': prompt})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        return jsonify({'status': 'saved'})
+    else:
+        try:
+            resp = meta_table.get_item(Key={'user': 'draft_prompt'})
+            prompt = resp.get('Item', {}).get('prompt', '')
+            return jsonify({'prompt': prompt})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/whitelist', methods=['GET', 'POST'])
 def whitelist_rules():
     """Get or update whitelist rules."""
@@ -228,4 +256,56 @@ def whitelist_rules():
             return jsonify({'rules': rules})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/send', methods=['POST'])
+def send_draft():
+    """Send a drafted email."""
+    data = request.get_json() or {}
+    msg_id = data.get('id')
+    draft = data.get('draft', '')
+    if not msg_id:
+        return jsonify({'error': 'id required'}), 400
+    try:
+        resp = email_table.get_item(Key={'message_id': msg_id})
+        item = resp.get('Item')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    if not item:
+        return jsonify({'error': 'email not found'}), 404
+    account = item.get('account')
+    try:
+        u = users_table.get_item(Key={'user': account}).get('Item')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    if not u:
+        return jsonify({'error': 'account not found'}), 404
+    password = u.get('password')
+    to_addrs = json.loads(item.get('from', '[]'))
+    if isinstance(to_addrs, list) and len(to_addrs) > 0:
+        first = to_addrs[0]
+        if isinstance(first, list) or isinstance(first, tuple):
+            to_addr = first[1]
+        else:
+            to_addr = first
+    else:
+        to_addr = ''
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = 'Re: ' + item.get('subject', '')
+        msg['From'] = account
+        msg['To'] = to_addr
+        msg.set_content(draft)
+        smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        smtp.login(account, password)
+        smtp.send_message(msg)
+        smtp.quit()
+        email_table.update_item(
+            Key={'message_id': msg_id},
+            UpdateExpression='SET draft = :d, processed = :p, action = :a',
+            ExpressionAttributeValues={':d': draft, ':p': True, ':a': 'sent'}
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    return jsonify({'status': 'sent'})
 

@@ -102,7 +102,9 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
                 'body': all_body,
                 'date': date.isoformat() if date else '',
                 'processed': False,
-                'action': ''
+                'action': '',
+                'draft': '',
+                'account': current_user,
             }
         )
         if date:

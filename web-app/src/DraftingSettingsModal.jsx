@@ -32,6 +32,11 @@ function DraftingSettingsModal({ isOpen, onClose, prompts, setPrompts }) {
         p.name === selectedName ? { ...p, prompt: systemText } : p
       )
     );
+    fetch('/api/draft_prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: systemText }),
+    });
   };
 
   const generateTest = () => {
