@@ -16,6 +16,11 @@ spec = importlib.util.spec_from_file_location('observer', observer_path)
 observer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(observer)
 
+filter_path = os.path.join(BASE_DIR, 'daemon-service', 'filter_utils.py')
+spec_f = importlib.util.spec_from_file_location('filter_utils', filter_path)
+filter_utils = importlib.util.module_from_spec(spec_f)
+spec_f.loader.exec_module(filter_utils)
+
 
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 DYNAMODB_TABLE = os.getenv('DYNAMODB_TABLE', 'dmail_emails')
@@ -69,6 +74,9 @@ def update_last_processed_date(user, dt):
 
 
 def process_email(current_user, parsed_email):
+    if not filter_utils.should_store(parsed_email):
+        print("Email filtered by whitelist rules")
+        return
     from_email = parsed_email.from_
     if len(parsed_email.reply_to) > 0:
         from_email = parsed_email.reply_to
@@ -194,6 +202,30 @@ def reading_prompt():
             resp = meta_table.get_item(Key={'user': 'reading_prompt'})
             prompt = resp.get('Item', {}).get('prompt', '')
             return jsonify({'prompt': prompt})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/whitelist', methods=['GET', 'POST'])
+def whitelist_rules():
+    """Get or update whitelist rules."""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        rules = data.get('rules')
+        if not isinstance(rules, list):
+            return jsonify({'error': 'rules must be a list'}), 400
+        try:
+            meta_table.put_item(
+                Item={'user': 'whitelist_rules', 'rules': json.dumps(rules)}
+            )
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        return jsonify({'status': 'saved'})
+    else:
+        try:
+            resp = meta_table.get_item(Key={'user': 'whitelist_rules'})
+            rules = json.loads(resp.get('Item', {}).get('rules', '[]'))
+            return jsonify({'rules': rules})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 

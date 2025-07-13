@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 import DraftingSettingsModal from './DraftingSettingsModal.jsx';
+import WhitelistSettingsModal from './WhitelistSettingsModal.jsx';
 import Onboarding from './Onboarding.jsx';
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
   const [emails, setEmails] = useState([]);
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
+  const [showWhitelistModal, setShowWhitelistModal] = useState(false);
   const [draftPrompts, setDraftPrompts] = useState([
     {
       name: 'default',
@@ -43,6 +45,7 @@ function App() {
           <img className="avatar" src="/vite.svg" alt="Profile" />
           <span className="name">John Doe</span>
           <button onClick={() => setShowDraftModal(true)}>Drafting Settings</button>
+          <button onClick={() => setShowWhitelistModal(true)}>Whitelist Settings</button>
         </div>
       </header>
       <div className="main-container">
@@ -90,6 +93,12 @@ function App() {
           onClose={() => setShowDraftModal(false)}
           prompts={draftPrompts}
           setPrompts={setDraftPrompts}
+        />
+      )}
+      {showWhitelistModal && (
+        <WhitelistSettingsModal
+          isOpen={showWhitelistModal}
+          onClose={() => setShowWhitelistModal(false)}
         />
       )}
     </div>
