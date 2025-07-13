@@ -151,7 +151,8 @@ async def handle_email(user: str, parsed_email) -> None:
         except Exception as e:
             print(f"Failed to store draft: {e}")
 
-    if not any([label_name, archive_flag]):
+    acted = any([label_name, archive_flag, draft_text])
+    if not acted:
         return
 
     service = get_gmail_service(user)
@@ -186,3 +187,12 @@ async def handle_email(user: str, parsed_email) -> None:
             record_action(parsed_email.message_id, "archived")
         except Exception as e:
             print(f"Failed to archive message: {e}")
+
+    # Mark the message as read if any action was taken
+    try:
+        service.users().messages().modify(
+            userId="me", id=msg_id, body={"removeLabelIds": ["UNREAD"]}
+        ).execute()
+        print(f"Marked message {parsed_email.message_id} as read")
+    except Exception as e:
+        print(f"Failed to mark message as read: {e}")
