@@ -41,7 +41,7 @@
 
 .left-panel {
   flex: 1;
-  border-right: 1px solid #ccc;
+  border-right: 1px solid var(--border-color);
   padding-right: 1rem;
 }
 
@@ -64,11 +64,11 @@
 }
 
 .email-item {
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid var(--border-color);
   padding: 0.5rem 0;
 }
 .email-item.processed {
-  background-color: #f2f2f2;
+  background-color: var(--processed-bg);
   color: #666;
 }
 .email-action {
