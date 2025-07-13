@@ -13,6 +13,9 @@ function App() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showWhitelistModal, setShowWhitelistModal] = useState(false);
+  const [theme, setTheme] = useState(
+    localStorage.getItem('theme') || 'dark'
+  );
   const [draftPrompts, setDraftPrompts] = useState([
     {
       name: 'default',
@@ -38,6 +41,12 @@ function App() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    document.body.classList.remove('theme-light', 'theme-dark');
+    document.body.classList.add(theme === 'light' ? 'theme-light' : 'theme-dark');
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
   const unprocessedCount = emails.filter((e) => !e.processed).length;
 
   if (!currentUser) {
@@ -57,6 +66,9 @@ function App() {
           <span className="name">John Doe</span>
           <button onClick={() => setShowDraftModal(true)}>Drafting Settings</button>
           <button onClick={() => setShowWhitelistModal(true)}>Whitelist Settings</button>
+          <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+            {theme === 'light' ? 'Dark' : 'Light'} Theme
+          </button>
         </div>
       </header>
       <div className="main-container">
