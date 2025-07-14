@@ -5,12 +5,14 @@ import WhitelistSettingsModal from './WhitelistSettingsModal.jsx';
 import EmailDraftModal from './EmailDraftModal.jsx';
 import AwaitingHumanModal from './AwaitingHumanModal.jsx';
 import Onboarding from './Onboarding.jsx';
+import UserSelector from './UserSelector.jsx';
 import UserProfileDropdown from './UserProfileDropdown.jsx';
 
 function App() {
-  const [currentUser, setCurrentUser] = useState(
-    localStorage.getItem('userEmail') || ''
-  );
+  const [currentUser, setCurrentUser] = useState(() => {
+    const stored = localStorage.getItem('userEmail');
+    return stored || '';
+  });
   const [userProfile, setUserProfile] = useState(null);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [emails, setEmails] = useState([]);
@@ -35,6 +37,40 @@ function App() {
   const [processingEmails, setProcessingEmails] = useState(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  
+  // New state for user selection flow
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+
+  // Fetch available users when there's no current user
+  useEffect(() => {
+    if (!currentUser && !usersLoaded) {
+      fetchAvailableUsers();
+    }
+  }, [currentUser, usersLoaded]);
+
+  const fetchAvailableUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const userData = await response.json();
+        setAvailableUsers(userData);
+        setUsersLoaded(true);
+        
+        // If no users exist, show onboarding immediately
+        if (userData.length === 0) {
+          setShowOnboarding(true);
+        }
+      } else {
+        console.error('Failed to fetch users');
+        setShowOnboarding(true); // Fallback to onboarding
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setShowOnboarding(true); // Fallback to onboarding
+    }
+  };
 
   // Fetch user profile when currentUser changes
   useEffect(() => {
@@ -71,12 +107,24 @@ function App() {
         setUserProfile(null);
         setShowUserDropdown(false);
         setEmails([]);
+        setShowOnboarding(false);
+        setUsersLoaded(false); // Reset to refetch users
       } else {
         console.error('Failed to sign out');
       }
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const handleOnboardingComplete = (email) => {
+    setCurrentUser(email);
+    setShowOnboarding(false);
+    setUsersLoaded(false); // Reset to refetch users
+  };
+
+  const handleAddNewAccount = () => {
+    setShowOnboarding(true);
   };
 
   const updateUserProfile = async (newName) => {
@@ -122,16 +170,16 @@ function App() {
         
         // If the status endpoint doesn't exist, fall back to full refresh
         if (!response.ok) {
-          console.log('Status endpoint not available, falling back to full refresh');
+          // console.log('Status endpoint not available, falling back to full refresh');
           await fetchEmails();
           return;
         }
         
         const status = await response.json();
         
-        // Only fetch full emails if there are changes
-        if (status.last_modified !== lastModified) {
-          console.log('New emails detected, refreshing...');
+        // Only fetch full emails if there are changes and we have a valid lastModified
+        if (status.last_modified && status.last_modified !== lastModified) {
+          // console.log('New emails detected, refreshing...');
           await fetchEmails();
         }
       } catch (err) {
@@ -144,7 +192,7 @@ function App() {
     // Initial fetch
     fetchEmails();
     
-    // Set up smart polling every 5 seconds
+    // Set up smart polling every 5 seconds, but only if we have a current user
     const intervalId = setInterval(checkForUpdates, 5000);
     
     // Cleanup interval on unmount
@@ -273,53 +321,14 @@ function App() {
   };
 
   const getActionTag = (email) => {
-    if (!email.action) return null;
-    
-    const action = email.action;
-    
-    // Handle individual action types
-    if (action === 'sent') {
-      return 'sent email';
-    }
-    if (action === 'archived') {
-      return 'archived email';
-    }
-    if (action === 'reviewed (no action needed)') {
-      return 'reviewed';
-    }
-    
-    // Handle combined actions (e.g., "drafted, labeled 'work'")
-    if (action.includes(',')) {
-      const parts = action.split(',').map(part => part.trim());
-      const tags = parts.map(part => {
-        if (part === 'drafted') return 'drafted email';
-        if (part === 'archived') return 'archived email';
-        if (part.startsWith('labeled ')) return part.replace('labeled ', 'labeled: ');
-        return part;
-      });
-      return tags.join(', ');
-    }
-    
-    // Handle single actions
-    if (action === 'drafted') {
-      return 'drafted email';
-    }
-    if (action.startsWith('labeled ')) {
-      return action.replace('labeled ', 'labeled: ');
-    }
-    if (action.startsWith('label:')) {
-      return `labeled: ${action.substring(6)}`;
-    }
-    if (action.startsWith('added label')) {
-      return action;
-    }
-    
-    // Default case - return the action as-is
-    return action;
+    if (email.action === 'sent') return 'sent';
+    if (email.action === 'archived') return 'archived';
+    if (email.action === 'labeled') return `labeled: ${email.label}`;
+    return null;
   };
 
   const EmailItem = ({ email, showActions = false, isAwaitingHuman = false, onAwaitingHumanClick }) => {
-    const isProcessingEmail = processingEmails.has(email.id);
+    const isProcessingEmail = processingEmails.has(email.message_id);
     
     const handleClick = () => {
       if (isAwaitingHuman && onAwaitingHumanClick) {
@@ -370,10 +379,32 @@ function App() {
     );
   };
 
-  if (!currentUser) {
+  // Show onboarding if explicitly requested or if no users exist
+  if (showOnboarding || (!currentUser && usersLoaded && availableUsers.length === 0)) {
     return (
       <div className="app">
-        <Onboarding onComplete={setCurrentUser} />
+        <Onboarding onComplete={handleOnboardingComplete} />
+      </div>
+    );
+  }
+
+  // Show user selector if no current user but users exist
+  if (!currentUser && usersLoaded && availableUsers.length > 0) {
+    return (
+      <div className="app">
+        <UserSelector 
+          onComplete={setCurrentUser} 
+          onAddNew={handleAddNewAccount}
+        />
+      </div>
+    );
+  }
+
+  // Show loading while fetching users
+  if (!currentUser && !usersLoaded) {
+    return (
+      <div className="app">
+        <div className="loading">Loading...</div>
       </div>
     );
   }
@@ -385,7 +416,7 @@ function App() {
         <div className="profile">
           <div className="avatar">🤖</div>
           <div className="user-info" onClick={() => setShowUserDropdown(!showUserDropdown)}>
-            <span className="name">{userProfile?.name || 'Loading...'}</span>
+            <span className="name">{userProfile?.name || userProfile?.email || 'Loading...'}</span>
             <span className="dropdown-arrow">▼</span>
           </div>
           {showUserDropdown && (
@@ -466,7 +497,7 @@ function App() {
             <h3>Unprocessed Inbox ({unprocessedEmails.length})</h3>
             <div className="email-list">
               {unprocessedEmails.map((email) => (
-                <EmailItem key={email.id} email={email} />
+                <EmailItem key={email.message_id} email={email} />
               ))}
               {unprocessedEmails.length === 0 && (
                 <div className="empty-state">No unprocessed emails</div>
@@ -479,7 +510,7 @@ function App() {
             <h3>Awaiting Human ({awaitingHumanEmails.length})</h3>
             <div className="email-list">
               {awaitingHumanEmails.map((email) => (
-                <EmailItem key={email.id} email={email} isAwaitingHuman={true} onAwaitingHumanClick={(e) => setSelectedAwaitingHuman(e)} />
+                <EmailItem key={email.message_id} email={email} isAwaitingHuman={true} onAwaitingHumanClick={(e) => setSelectedAwaitingHuman(e)} />
               ))}
               {awaitingHumanEmails.length === 0 && (
                 <div className="empty-state">No emails awaiting human review</div>
@@ -492,7 +523,7 @@ function App() {
             <h3>Processed Inbox ({processedEmails.length})</h3>
             <div className="email-list">
               {processedEmails.map((email) => (
-                <EmailItem key={email.id} email={email} showActions={true} />
+                <EmailItem key={email.message_id} email={email} showActions={true} />
               ))}
               {processedEmails.length === 0 && (
                 <div className="empty-state">No processed emails</div>

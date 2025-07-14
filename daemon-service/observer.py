@@ -8,17 +8,14 @@ from config_reader import (
     HOST,
     USER,
     PASSWORD,
-    AWS_REGION,
-    DYNAMODB_TABLE,
-    DYNAMODB_META_TABLE,
-    DYNAMODB_USERS_TABLE,
+    DATABASE_PATH,
     LOOKBACK_DAYS,
 )
 from datetime import datetime, timedelta
 import json
 from string import Template
 from email_reply_parser import EmailReplyParser
-import boto3
+from database import db
 from dateutil import tz
 
 import smtplib
@@ -27,12 +24,6 @@ from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import filter_utils
-
-# DynamoDB setup
-dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
-email_table = dynamodb.Table(DYNAMODB_TABLE)
-meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
-users_table = dynamodb.Table(DYNAMODB_USERS_TABLE)
 
 emails_to_process = []
 
@@ -43,10 +34,9 @@ processed_message_ids = set()
 def get_last_processed_date(user):
     """Retrieve the last processed email timestamp for a user."""
     try:
-        response = meta_table.get_item(Key={"user": user})
-        item = response.get("Item")
-        if item and item.get("last_processed"):
-            dt = datetime.fromisoformat(item["last_processed"])
+        metadata = db.get_metadata(user)
+        if metadata and metadata.get("last_processed"):
+            dt = datetime.fromisoformat(metadata["last_processed"])
             # Ensure the datetime is timezone-aware and in UTC
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=tz.UTC)
@@ -71,7 +61,7 @@ def update_last_processed_date(user, dt):
         
         current = get_last_processed_date(user)
         if not current or dt_utc > current:
-            meta_table.put_item(Item={"user": user, "last_processed": dt_utc.isoformat()})
+            db.put_metadata(user, {"last_processed": dt_utc.isoformat()})
     except Exception as e:
         print(f"Error updating last processed date: {e}")
 
@@ -103,8 +93,7 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
     print(f'user_info: {user_info}')
     print(f'body: {body}')
 
-
-    # Store into DynamoDB
+    # Store into SQLite
     try:
         # Convert email date to UTC before storing
         utc_date = None
@@ -114,24 +103,24 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
             else:
                 utc_date = date.replace(tzinfo=tz.UTC)
         
-        email_table.put_item(
-            Item={
-                'message_id': message_id or '',
-                'subject': subject or '',
-                'to': json.dumps(to),
-                'from': json.dumps(user_info),
-                'body': all_body,
-                'date': utc_date.isoformat() if utc_date else '',
-                'processed': False,
-                'action': '',
-                'draft': '',
-                'account': current_user,
-            }
-        )
+        email_data = {
+            'message_id': message_id or '',
+            'subject': subject or '',
+            'to': json.dumps(to),
+            'from': json.dumps(user_info),
+            'body': all_body,
+            'date': utc_date.isoformat() if utc_date else '',
+            'processed': False,
+            'action': '',
+            'draft': '',
+            'account': current_user,
+        }
+        
+        db.put_email(email_data)
         if utc_date:
             update_last_processed_date(current_user, utc_date)
     except Exception as e:
-        print(f'Error saving email to DynamoDB: {e}')
+        print(f'Error saving email to database: {e}')
 
     emails_to_process.append({
         'to': to,
@@ -141,8 +130,6 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
         'message_id': message_id
     })
 
-
-    
 
 async def imap_loop(host, user, password) -> None:
     # Gmail requires port 993 for SSL connections
@@ -163,7 +150,7 @@ async def imap_loop(host, user, password) -> None:
         await imap_client.select('INBOX')
         print("Successfully selected INBOX")
         
-    except aioimaplib.IMAP4Error as e:
+    except Exception as e:
         print(f"IMAP Error during connection/login for {user}: {str(e)}")
         if "authentication failed" in str(e).lower():
             print("Authentication failed - check your app password!")
@@ -172,99 +159,140 @@ async def imap_loop(host, user, password) -> None:
             print("2. You're using an App Password (not your regular password)")
             print("3. The app password is correct")
         raise
-    except Exception as e:
-        print(f"Unexpected error during connection/login for {user}: {str(e)}")
-        raise
 
+    # Get the last processed date for this user
+    last_processed_date = get_last_processed_date(user)
+    
+    if last_processed_date:
+        # Search for emails since the last processed date
+        since_dt = last_processed_date
+        since_str = since_dt.strftime('%d-%b-%Y')
+        print(f"Searching for emails since {since_str}")
+        search_criteria = f'SINCE "{since_str}"'
+    else:
+        # If no last processed date, look back a few days
+        since_dt = datetime.now(tz.UTC) - timedelta(days=LOOKBACK_DAYS)
+        since_str = since_dt.strftime('%d-%b-%Y')
+        print(f"No previous processing date found, looking back {LOOKBACK_DAYS} days to {since_str}")
+        search_criteria = f'SINCE "{since_str}"'
+    
+    # Start monitoring loop
     while True:
-        last_processed = get_last_processed_date(user)
-        if last_processed:
-            since_dt = last_processed
-        else:
-            since_dt = datetime.now(tz.UTC) - timedelta(days=LOOKBACK_DAYS)
-        
-        # Use the day before to ensure we catch all emails due to timezone issues
-        search_dt = since_dt - timedelta(days=1)
-        since_str = search_dt.strftime('%d-%b-%Y')
-        print(f"Searching for emails since (UTC): {since_dt} -> searching from {since_str}")
-
-        response = await imap_client.search(f'(SINCE {since_str})')
-        search_uids = response.lines[0].split()
-        search_uids = [uid.decode() for uid in search_uids]
-        if len(search_uids) > 0:
-            # fetch any emails since the desired date
-            response = await imap_client.uid('fetch', ','.join(search_uids), 'RFC822')
+        try:
+            # Search for unread emails
+            await imap_client.search(search_criteria)
             
-            # start is: 2 FETCH (UID 18 RFC822 {42}
-            # middle is the actual email content
-            # end is simply ")"
-            # the last line is removed as it's only "success"-ish information
-            # the iter + zip tricks is to iterate three by three
-            iterator = iter(response.lines[:-1])
-            for start, middle, _end in zip(iterator, iterator, iterator):
-                try:
-                    parsed_email = mailparser.parse_from_bytes(middle)
-
-                    # Filter out emails that are actually older than our target date
-                    if parsed_email.date and since_dt:
-                        # Ensure both dates are timezone-aware for comparison
-                        email_date = parsed_email.date
-                        if email_date.tzinfo is None:
-                            email_date = email_date.replace(tzinfo=tz.UTC)
-                        elif email_date.tzinfo != tz.UTC:
-                            email_date = email_date.astimezone(tz.UTC)
+            # First, get all email IDs
+            search_result = await imap_client.search('ALL')
+            if search_result.result == 'OK':
+                email_ids = search_result.lines[0].split()
+                if email_ids:
+                    print(f"Found {len(email_ids)} emails to process")
+                    
+                    # Process emails in batches of 3
+                    for i in range(0, len(email_ids), 3):
+                        batch = email_ids[i:i+3]
                         
-                        if email_date <= since_dt:
-                            continue
+                        # Fetch the emails
+                        for email_id in batch:
+                            try:
+                                # Convert bytes to string if needed
+                                if isinstance(email_id, bytes):
+                                    email_id = email_id.decode('utf-8')
+                                
+                                fetch_result = await imap_client.fetch(email_id, '(RFC822)')
+                                if fetch_result.result == 'OK':
+                                    email_data = fetch_result.lines[1]
+                                    
+                                    try:
+                                        parsed_email = mailparser.parse_from_bytes(email_data)
 
-                    # Apply whitelist filtering
-                    allow = await asyncio.to_thread(filter_utils.should_store, parsed_email)
-                    if not allow:
-                        print("Email filtered by whitelist rules")
-                        continue
+                                        # Filter out emails that are actually older than our target date
+                                        if parsed_email.date and since_dt:
+                                            # Ensure both dates are timezone-aware for comparison
+                                            email_date = parsed_email.date
+                                            if email_date.tzinfo is None:
+                                                email_date = email_date.replace(tzinfo=tz.UTC)
+                                            elif email_date.tzinfo != tz.UTC:
+                                                email_date = email_date.astimezone(tz.UTC)
+                                            
+                                            if email_date <= since_dt:
+                                                continue
 
-                    # Check if we've already processed this message
-                    message_id = parsed_email.message_id
-                    if message_id in processed_message_ids:
-                        print(f"Skipping already processed message: {message_id}")
-                        continue
-                    
-                    # Add to processed set (only if message_id is not None/empty)
-                    if message_id:
-                        processed_message_ids.add(message_id)
-                    else:
-                        print("Warning: Message has no ID, processing anyway")
-                    
-                    print(parsed_email.to)
-                    print(parsed_email.subject)
-                    from_email = parsed_email.from_
-                    if len(parsed_email.reply_to) > 0:
-                        from_email = parsed_email.reply_to
-                    print('from email::::')
-                    print(from_email)
-                    print(parsed_email.text_plain)
-                    print('message id::::')
-                    print(parsed_email.message_id)
-                    processUnread(
-                        user,
-                        parsed_email.to,
-                        from_email,
-                        parsed_email.text_plain,
-                        parsed_email.subject,
-                        parsed_email.message_id,
-                        parsed_email.date
-                    )
-                    # Enable automatic AI processing for new emails
-                    try:
-                        asyncio.create_task(ai_processor.handle_email(user, parsed_email))
-                        print(f"Queued AI processing for email: {parsed_email.message_id}")
-                    except Exception as e:
-                        print(f"Error queuing AI processing for email {parsed_email.message_id}: {e}")
-                    print(f"Total processed messages tracked: {len(processed_message_ids)}")
-                except Exception as e:
-                    print(f'Error processing individual email: {str(e)}')
-                    print(f'Skipping this email and continuing with the next one')
-                    continue
+                                        # Apply whitelist filtering
+                                        is_whitelisted = await asyncio.to_thread(filter_utils.should_store, parsed_email, user)
+                                        if is_whitelisted:
+                                            print("Email is whitelisted - storing without AI processing")
+                                            # Store whitelisted email directly without AI processing
+                                            message_id = parsed_email.message_id
+                                            if message_id and message_id not in processed_message_ids:
+                                                processed_message_ids.add(message_id)
+                                                
+                                                # Store whitelisted email as already processed
+                                                email_data = {
+                                                    'message_id': message_id or '',
+                                                    'subject': parsed_email.subject or '',
+                                                    'to': json.dumps(parsed_email.to),
+                                                    'from': json.dumps(parsed_email.from_),
+                                                    'body': parsed_email.text_plain[0] if parsed_email.text_plain else '',
+                                                    'date': email_date.isoformat() if email_date else '',
+                                                    'processed': True,
+                                                    'action': 'whitelisted',
+                                                    'draft': '',
+                                                    'account': user,
+                                                }
+                                                db.put_email(email_data)
+                                            continue
+
+                                        # Check if we've already processed this message
+                                        message_id = parsed_email.message_id
+                                        if message_id in processed_message_ids:
+                                            print(f"Skipping already processed message: {message_id}")
+                                            continue
+                                        
+                                        # Add to processed set (only if message_id is not None/empty)
+                                        if message_id:
+                                            processed_message_ids.add(message_id)
+                                        else:
+                                            print("Warning: Message has no ID, processing anyway")
+                                        
+                                        print(parsed_email.to)
+                                        print(parsed_email.subject)
+                                        from_email = parsed_email.from_
+                                        if len(parsed_email.reply_to) > 0:
+                                            from_email = parsed_email.reply_to
+                                        print('from email::::')
+                                        print(from_email)
+                                        print(parsed_email.text_plain)
+                                        print('message id::::')
+                                        print(parsed_email.message_id)
+                                        processUnread(
+                                            user,
+                                            parsed_email.to,
+                                            from_email,
+                                            parsed_email.text_plain,
+                                            parsed_email.subject,
+                                            parsed_email.message_id,
+                                            parsed_email.date
+                                        )
+                                        # Enable automatic AI processing for new emails
+                                        try:
+                                            asyncio.create_task(ai_processor.handle_email(user, parsed_email))
+                                            print(f"Queued AI processing for email: {parsed_email.message_id}")
+                                        except Exception as e:
+                                            print(f"Error queuing AI processing for email {parsed_email.message_id}: {e}")
+                                        print(f"Total processed messages tracked: {len(processed_message_ids)}")
+                                    except Exception as e:
+                                        print(f'Error processing individual email: {str(e)}')
+                                        print(f'Skipping this email and continuing with the next one')
+                                        continue
+                            except Exception as e:
+                                print(f'Error fetching email {email_id}: {str(e)}')
+                                continue
+                                
+        except Exception as e:
+            print(f'Error in email processing loop: {str(e)}')
+            
         try:
             idle_task = await imap_client.idle_start(timeout=30)  # Reduced from 60 to 30 seconds
             await imap_client.wait_server_push()
@@ -293,7 +321,7 @@ async def loop_and_retry(host, user, password):
             # Reset failure count on successful connection
             consecutive_auth_failures = 0
             connection_failures = 0
-        except aioimaplib.IMAP4Error as e:
+        except Exception as e:
             error_str = str(e).lower()
             if "authentication failed" in error_str or "login failed" in error_str:
                 consecutive_auth_failures += 1
@@ -311,11 +339,6 @@ async def loop_and_retry(host, user, password):
                 print(f'IMAP Error for {user} (connection failure #{connection_failures}): {str(e)}')
                 # Shorter wait for connection issues
                 await asyncio.sleep(min(connection_failures * 2, 15))  # Exponential backoff, max 15 seconds
-        except Exception as e:
-            connection_failures += 1
-            print(f'Exception for {user} (connection failure #{connection_failures}): {str(e)}')
-            # Shorter wait for general exceptions
-            await asyncio.sleep(min(connection_failures * 2, 15))  # Exponential backoff, max 15 seconds
 
 
 async def monitor_accounts():
@@ -339,16 +362,11 @@ async def monitor_accounts():
 
 def fetch_accounts():
     try:
-        response = users_table.scan()
-        return response.get('Items', [])
+        return db.get_users()
     except Exception as e:
         print(f'Error fetching accounts: {e}')
         return []
 
 
-async def main():
-    await monitor_accounts()
-
-
 if __name__ == '__main__':
-    asyncio.run(main())
+    asyncio.run(monitor_accounts())

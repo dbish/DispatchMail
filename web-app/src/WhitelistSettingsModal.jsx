@@ -9,6 +9,7 @@ function WhitelistSettingsModal({ isOpen, onClose }) {
     is_reprocessing: false,
     message: ''
   });
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -84,6 +85,40 @@ function WhitelistSettingsModal({ isOpen, onClose }) {
     }
   };
 
+  const resetInbox = async () => {
+    if (!confirm('Are you sure you want to reset the inbox? This will permanently delete all emails from the database and reset the processing timestamp. Your whitelist rules will be preserved. This action cannot be undone.')) {
+      return;
+    }
+
+    setIsResetting(true);
+    setMessage('');
+    
+    try {
+      const response = await fetch('/api/reset_inbox', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setMessage(`Inbox reset successfully! ${result.emails_deleted} emails deleted.`);
+        setTimeout(() => {
+          setMessage('');
+          onClose();
+        }, 3000);
+      } else {
+        setMessage(`Error: ${result.error}`);
+      }
+    } catch (err) {
+      setMessage(`Error: ${err.message}`);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -114,7 +149,7 @@ function WhitelistSettingsModal({ isOpen, onClose }) {
             <select
               value={rule.type}
               onChange={(e) => updateRule(idx, 'type', e.target.value)}
-              disabled={isLoading || reprocessingStatus.is_reprocessing}
+              disabled={isLoading || reprocessingStatus.is_reprocessing || isResetting}
             >
               <option value="email">Email Address</option>
               <option value="subject">Subject Contains</option>
@@ -129,12 +164,12 @@ function WhitelistSettingsModal({ isOpen, onClose }) {
                 rule.type === 'subject' ? '[agent]' :
                 'Describe emails to allow'
               }
-              disabled={isLoading || reprocessingStatus.is_reprocessing}
+              disabled={isLoading || reprocessingStatus.is_reprocessing || isResetting}
             />
             <button 
               type="button" 
               onClick={() => removeRule(idx)}
-              disabled={isLoading || reprocessingStatus.is_reprocessing}
+              disabled={isLoading || reprocessingStatus.is_reprocessing || isResetting}
             >
               Remove
             </button>
@@ -143,7 +178,7 @@ function WhitelistSettingsModal({ isOpen, onClose }) {
         
         <button 
           onClick={addRule} 
-          disabled={isLoading || reprocessingStatus.is_reprocessing}
+          disabled={isLoading || reprocessingStatus.is_reprocessing || isResetting}
         >
           Add Rule
         </button>
@@ -151,15 +186,37 @@ function WhitelistSettingsModal({ isOpen, onClose }) {
         <div className="modal-actions">
           <button 
             onClick={saveRules} 
-            disabled={isLoading || reprocessingStatus.is_reprocessing}
+            disabled={isLoading || reprocessingStatus.is_reprocessing || isResetting}
           >
             {isLoading ? 'Saving...' : reprocessingStatus.is_reprocessing ? 'Reprocessing...' : 'Save & Reprocess'}
           </button>
           <button 
             onClick={onClose} 
-            disabled={isLoading || reprocessingStatus.is_reprocessing}
+            disabled={isLoading || reprocessingStatus.is_reprocessing || isResetting}
           >
             {reprocessingStatus.is_reprocessing ? 'Processing...' : 'Cancel'}
+          </button>
+        </div>
+        
+        <div className="modal-debug-section">
+          <hr style={{ margin: '20px 0', borderColor: '#e0e0e0' }} />
+          <p style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+            <strong>Debug Options:</strong>
+          </p>
+          <button 
+            onClick={resetInbox}
+            disabled={isLoading || reprocessingStatus.is_reprocessing || isResetting}
+            style={{ 
+              backgroundColor: '#ff4444', 
+              color: 'white', 
+              border: 'none', 
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: isLoading || reprocessingStatus.is_reprocessing || isResetting ? 'not-allowed' : 'pointer',
+              opacity: isLoading || reprocessingStatus.is_reprocessing || isResetting ? 0.6 : 1
+            }}
+          >
+                         {isResetting ? 'Resetting...' : 'Reset Inbox (Delete All Emails)'}
           </button>
         </div>
       </div>

@@ -6,8 +6,8 @@ from typing import Optional
 from openai import OpenAI
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-import boto3
-from config_reader import AWS_REGION, DYNAMODB_META_TABLE, DYNAMODB_TABLE, OPENAI_API_KEY
+from config_reader import DATABASE_PATH, OPENAI_API_KEY
+from database import db
 from email_reply_parser import EmailReplyParser
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
@@ -27,42 +27,40 @@ DEFAULT_PROMPT = (
 # Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
-meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
-email_table = dynamodb.Table(DYNAMODB_TABLE)
-
 
 def get_prompt() -> str:
-    """Fetch the latest prompt from DynamoDB or use default."""
+    """Fetch the latest prompt from database or use default."""
     try:
-        resp = meta_table.get_item(Key={"user": "reading_prompt"})
-        item = resp.get("Item")
-        if item and item.get("prompt"):
-            return item["prompt"]
+        metadata = db.get_metadata("reading_prompt")
+        if metadata and metadata.get("prompt"):
+            return metadata["prompt"]
     except Exception as e:
         print(f"Error fetching prompt: {e}")
     return DEFAULT_PROMPT
 
 
 def get_draft_prompt() -> str:
-    """Fetch the drafting prompt from DynamoDB or provide a default."""
+    """Fetch the drafting prompt from database or provide a default."""
     try:
-        resp = meta_table.get_item(Key={"user": "draft_prompt"})
-        item = resp.get("Item")
-        if item and item.get("prompt"):
-            return item["prompt"]
+        metadata = db.get_metadata("draft_prompt")
+        if metadata and metadata.get("prompt"):
+            return metadata["prompt"]
     except Exception as e:
         print(f"Error fetching draft prompt: {e}")
     return "Write a concise and professional reply to the email."
 
 
-def get_gmail_service(user: str):
-    token_path = os.path.join(TOKEN_DIR, f"{user}.json")
-    if not os.path.exists(token_path):
-        print(f"Gmail token not found for {user}: {token_path}")
-        return None
-    creds = Credentials.from_authorized_user_file(token_path, SCOPES)
-    return build("gmail", "v1", credentials=creds)
+def get_gmail_service(account: str):
+    """Get Gmail service for the given account."""
+    try:
+        token_path = os.path.join(TOKEN_DIR, f'{account}_token.json')
+        if os.path.exists(token_path):
+            creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+            service = build('gmail', 'v1', credentials=creds)
+            return service
+    except Exception as e:
+        print(f"Error getting Gmail service for {account}: {e}")
+    return None
 
 
 def ensure_label(service, name: str) -> Optional[str]:
@@ -83,85 +81,48 @@ def ensure_label(service, name: str) -> Optional[str]:
         return None
 
 
-def find_message(service, rfc822_msgid: str) -> Optional[str]:
+def find_message(service, message_id: str) -> Optional[str]:
+    """Find Gmail message ID by our message ID."""
     try:
-        resp = (
-            service.users()
-            .messages()
-            .list(userId="me", q=f"rfc822msgid:{rfc822_msgid}")
-            .execute()
-        )
-        msgs = resp.get("messages", [])
-        if not msgs:
-            return None
-        return msgs[0]["id"]
+        results = service.users().messages().list(userId="me", q=f"rfc822msgid:{message_id}").execute()
+        messages = results.get("messages", [])
+        if messages:
+            return messages[0]["id"]
     except Exception as e:
-        print(f"Error locating message {rfc822_msgid}: {e}")
-        return None
+        print(f"Error finding message {message_id}: {e}")
+    return None
 
 
 def record_action(message_id: str, action: str) -> None:
     """Mark an email as processed and store the action taken."""
     try:
-        email_table.update_item(
-            Key={"message_id": message_id},
-            UpdateExpression="SET #processed = :p, #action = :a",
-            ExpressionAttributeNames={
-                "#processed": "processed",
-                "#action": "action"
-            },
-            ExpressionAttributeValues={":p": True, ":a": action},
-        )
+        db.update_email(message_id, {"processed": True, "action": action})
     except Exception as e:
         print(f"Error updating email {message_id}: {e}")
 
 
 def extract_key_content(parsed_email) -> str:
-    """Extract the key content from an email for more focused LLM processing."""
-    body = parsed_email.text_plain[0] if parsed_email.text_plain else ""
+    """Extract the most important content from an email for AI processing."""
+    subject = parsed_email.subject or ""
+    from_email = str(parsed_email.from_) if parsed_email.from_ else ""
     
-    # Use EmailReplyParser to get just the new content (remove quoted replies)
-    clean_body = EmailReplyParser.parse_reply(body)
+    # Get the email body
+    body = ""
+    if parsed_email.text_plain:
+        body = parsed_email.text_plain[0] if isinstance(parsed_email.text_plain, list) else str(parsed_email.text_plain)
     
-    # If the cleaned body is very short, might be just a greeting - use full body
-    if len(clean_body.strip()) < 20:
-        clean_body = body
+    # Use EmailReplyParser to extract just the new content
+    if body:
+        reply_content = EmailReplyParser.parse_reply(body)
+        if reply_content and reply_content.strip():
+            body = reply_content
     
-    # Extract key information based on email length and content
-    lines = clean_body.strip().split('\n')
-    lines = [line.strip() for line in lines if line.strip()]
+    # Create a concise representation
+    content = f"Subject: {subject}\n"
+    content += f"From: {from_email}\n"
+    content += f"Body: {body[:1000]}..."  # Limit body to 1000 chars
     
-    # For short emails (< 5 lines), use the full content
-    if len(lines) <= 5:
-        key_content = clean_body.strip()
-    else:
-        # For longer emails, try to extract the key parts
-        key_lines = []
-        
-        # Look for question indicators
-        question_indicators = ['?', 'please', 'could you', 'would you', 'can you', 'need', 'urgent', 'asap']
-        
-        for line in lines:
-            line_lower = line.lower()
-            # Include lines with questions or requests
-            if any(indicator in line_lower for indicator in question_indicators):
-                key_lines.append(line)
-            # Include short lines that might be key points
-            elif len(line.split()) <= 10:
-                key_lines.append(line)
-        
-        # If we found key lines, use them. Otherwise, use first few lines + last few lines
-        if key_lines:
-            key_content = '\n'.join(key_lines)
-        else:
-            # Use first 3 and last 2 lines as fallback
-            selected_lines = lines[:3] + (lines[-2:] if len(lines) > 5 else [])
-            key_content = '\n'.join(selected_lines)
-    
-    # Create a concise prompt that includes subject for context
-    prompt_content = f"Subject: {parsed_email.subject}\n\n{key_content}"
-    
-    return prompt_content
+    return content
 
 
 async def handle_email(user: str, parsed_email) -> None:
@@ -206,58 +167,29 @@ async def handle_email(user: str, parsed_email) -> None:
         text = text[:-3]  # Remove trailing ```
     text = text.strip()
     
-    # Try to parse JSON with better error handling
+    # Parse the JSON response
     try:
-        data = json.loads(text)
-        print(f"Parsed JSON successfully: {data}")
+        response_data = json.loads(text)
     except json.JSONDecodeError as e:
-        print(f"JSON parsing failed: {e}")
-        print(f"Cleaned response was: '{text}'")
-        
-        # Try to extract JSON from the response if it's wrapped in text
-        import re
-        # Look for JSON objects with various patterns
-        patterns = [
-            r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}',  # Basic JSON object
-            r'\{.*?\}',  # Simple JSON match
-            r'(\{[\s\S]*\})',  # Multi-line JSON
-        ]
-        
-        for pattern in patterns:
-            json_match = re.search(pattern, text, re.DOTALL)
-            if json_match:
-                try:
-                    data = json.loads(json_match.group().strip())
-                    print(f"Extracted and parsed JSON: {data}")
-                    break
-                except json.JSONDecodeError:
-                    continue
-        else:
-            print("Could not extract valid JSON from response")
-            # Default to marking as reviewed if we can't parse
-            data = {"reviewed": True}
-    except Exception as e:
-        print(f"Unexpected error parsing response: {e}")
-        # Default to marking as reviewed if we can't parse
-        data = {"reviewed": True}
-
-    label_name = data.get("label")
-    draft_text = data.get("draft") or data.get("response")  # Handle both 'draft' and 'response' keys
-    archive_flag = data.get("archive")
-    reviewed_flag = data.get("reviewed")
+        print(f"Failed to parse JSON response: {e}")
+        print(f"Response was: {text}")
+        return
+    
+    # Extract actions from the response
+    draft_text = response_data.get("draft", "")
+    label_name = response_data.get("label", "")
+    archive_flag = response_data.get("archive", False)
+    
+    print(f"Parsed response - Draft: {bool(draft_text)}, Label: {label_name}, Archive: {archive_flag}")
 
     # Store draft and the actual prompt sent to LLM if generated
     if draft_text:
         print(f"Storing draft for email {parsed_email.message_id}: {draft_text}")
         try:
-            email_table.update_item(
-                Key={"message_id": parsed_email.message_id},
-                UpdateExpression="SET draft = :d, llm_prompt = :p",
-                ExpressionAttributeValues={
-                    ":d": draft_text,
-                    ":p": key_content  # Store what was actually sent to LLM
-                },
-            )
+            db.update_email(parsed_email.message_id, {
+                "draft": draft_text,
+                "llm_prompt": key_content  # Store what was actually sent to LLM
+            })
             print(f"Successfully stored draft and LLM prompt for email {parsed_email.message_id}")
         except Exception as e:
             print(f"Failed to store draft: {e}")

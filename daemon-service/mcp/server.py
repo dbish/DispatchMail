@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Dict, Tuple
 
-import boto3
 import importlib.util
 import os
 from mcp.server.fastmcp import FastMCP
@@ -18,40 +17,35 @@ spec_cfg = importlib.util.spec_from_file_location('config_reader', config_path)
 config_reader = importlib.util.module_from_spec(spec_cfg)
 spec_cfg.loader.exec_module(config_reader)
 
-AWS_REGION = config_reader.AWS_REGION
-DYNAMODB_TABLE = config_reader.DYNAMODB_TABLE
-DYNAMODB_USERS_TABLE = config_reader.DYNAMODB_USERS_TABLE
+# Import database
+database_path = os.path.join(BASE_DIR, 'database.py')
+spec_db = importlib.util.spec_from_file_location('database', database_path)
+database = importlib.util.module_from_spec(spec_db)
+spec_db.loader.exec_module(database)
 
-
-dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
-email_table = dynamodb.Table(DYNAMODB_TABLE)
-users_table = dynamodb.Table(DYNAMODB_USERS_TABLE)
+db = database.db
 
 
 def list_emails() -> list[Dict[str, Any]]:
     """Return all stored emails."""
-    resp = email_table.scan()
-    return resp.get('Items', [])
+    return db.scan_emails()
 
 
 def draft_email(message_id: str, draft: str) -> Dict[str, Any]:
     """Store a draft reply for the given email."""
-    email_table.update_item(
-        Key={'message_id': message_id},
-        UpdateExpression='SET draft = :d',
-        ExpressionAttributeValues={':d': draft},
-    )
-    return {'status': 'draft stored'}
+    success = db.update_email(message_id, {'draft': draft})
+    if success:
+        return {'status': 'draft stored'}
+    return {'error': 'failed to store draft'}
 
 
 def _get_gmail_service_for_message(message_id: str) -> Tuple[Any, Dict[str, Any] | None]:
-    resp = email_table.get_item(Key={'message_id': message_id})
-    item = resp.get('Item')
-    if not item:
+    email_data = db.get_email(message_id)
+    if not email_data:
         return None, None
-    account = item.get('account')
+    account = email_data.get('account')
     service = ai_processor.get_gmail_service(account)
-    return service, item
+    return service, email_data
 
 
 def add_label(message_id: str, label: str) -> Dict[str, Any]:
@@ -68,11 +62,7 @@ def add_label(message_id: str, label: str) -> Dict[str, Any]:
     service.users().messages().modify(
         userId='me', id=gm_id, body={'addLabelIds': [label_id]}
     ).execute()
-    email_table.update_item(
-        Key={'message_id': message_id},
-        UpdateExpression='SET processed = :p, action = :a',
-        ExpressionAttributeValues={':p': True, ':a': f"label:{label}"},
-    )
+    db.update_email(message_id, {'processed': True, 'action': f"label:{label}"})
     return {'status': 'labeled'}
 
 
@@ -87,11 +77,7 @@ def archive_email(message_id: str) -> Dict[str, Any]:
     service.users().messages().modify(
         userId='me', id=gm_id, body={'removeLabelIds': ['INBOX']}
     ).execute()
-    email_table.update_item(
-        Key={'message_id': message_id},
-        UpdateExpression='SET processed = :p, action = :a',
-        ExpressionAttributeValues={':p': True, ':a': 'archived'},
-    )
+    db.update_email(message_id, {'processed': True, 'action': 'archived'})
     return {'status': 'archived'}
 
 
@@ -106,20 +92,20 @@ def tool_list_emails() -> list[Dict[str, Any]]:
     return list_emails()
 
 
-@server.tool(name='draft_email', description='Store a draft reply for an email')
+@server.tool(name='draft_email', description='Draft a reply for a specific email')
 def tool_draft_email(message_id: str, draft: str) -> Dict[str, Any]:
     return draft_email(message_id, draft)
 
 
-@server.tool(name='tag_email', description='Apply a Gmail label to the email')
-def tool_tag_email(message_id: str, label: str) -> Dict[str, Any]:
+@server.tool(name='add_label', description='Add a Gmail label to an email')
+def tool_add_label(message_id: str, label: str) -> Dict[str, Any]:
     return add_label(message_id, label)
 
 
-@server.tool(name='archive_email', description='Archive the email')
+@server.tool(name='archive_email', description='Archive an email in Gmail')
 def tool_archive_email(message_id: str) -> Dict[str, Any]:
     return archive_email(message_id)
 
 
 if __name__ == '__main__':
-    server.run('stdio')
+    server.run()

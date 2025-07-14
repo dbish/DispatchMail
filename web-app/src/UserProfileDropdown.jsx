@@ -3,7 +3,7 @@ import './UserProfileDropdown.css';
 
 export default function UserProfileDropdown({ userProfile, onClose, onSignOut, onUpdateProfile }) {
   const [isEditingName, setIsEditingName] = useState(false);
-  const [editedName, setEditedName] = useState(userProfile?.name || '');
+  const [editedName, setEditedName] = useState(userProfile?.name || userProfile?.email || '');
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -20,18 +20,20 @@ export default function UserProfileDropdown({ userProfile, onClose, onSignOut, o
   }, [onClose]);
 
   const handleSaveName = () => {
-    if (editedName.trim() && editedName !== userProfile?.name) {
+    if (editedName.trim() && editedName !== (userProfile?.name || userProfile?.email)) {
       onUpdateProfile(editedName.trim());
     }
     setIsEditingName(false);
   };
 
   const handleCancelEdit = () => {
-    setEditedName(userProfile?.name || '');
+    setEditedName(userProfile?.name || userProfile?.email || '');
     setIsEditingName(false);
   };
 
   if (!userProfile) return null;
+
+  const displayName = userProfile.name || userProfile.email;
 
   return (
     <div className="user-profile-dropdown" ref={dropdownRef}>
@@ -62,7 +64,7 @@ export default function UserProfileDropdown({ userProfile, onClose, onSignOut, o
             </div>
           ) : (
             <div className="name-display" onClick={() => setIsEditingName(true)}>
-              <span className="profile-name">{userProfile.name}</span>
+              <span className="profile-name">{displayName}</span>
               <span className="edit-icon">✎</span>
             </div>
           )}

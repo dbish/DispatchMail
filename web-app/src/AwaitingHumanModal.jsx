@@ -72,7 +72,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
       const response = await fetch('/api/reprocess_single_email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email_id: email.id }),
+        body: JSON.stringify({ email_id: email.message_id }),
       });
       
       if (response.ok) {
@@ -83,7 +83,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
         if (data.llm_prompt) {
           setLlmPrompt(data.llm_prompt);
         }
-        if (onRerun) onRerun(email.id);
+        if (onRerun) onRerun(email.message_id);
       } else {
         console.error('Failed to rerun email processing');
       }
@@ -105,7 +105,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
   };
 
   const handleDelete = () => {
-    onDelete(email.id);
+    onDelete(email.message_id);
   };
 
   return (

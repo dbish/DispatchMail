@@ -1,10 +1,8 @@
 import json
 import os
 
-import boto3
+from database import db
 from mailparser import MailParser
-
-from config_reader import AWS_REGION, DYNAMODB_META_TABLE
 
 try:
     from openai import OpenAI
@@ -14,19 +12,13 @@ except ImportError:  # openai optional
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY) if OpenAI and OPENAI_API_KEY else None
 
-# DynamoDB meta table
 
-dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
-meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
-
-
-def get_rules():
-    """Retrieve whitelist rules from DynamoDB."""
+def get_rules(user: str):
+    """Retrieve whitelist rules from database."""
     try:
-        resp = meta_table.get_item(Key={"user": "whitelist_rules"})
-        item = resp.get("Item")
-        if item and item.get("rules"):
-            return json.loads(item["rules"])
+        metadata = db.get_metadata(user, "rules")
+        if metadata:
+            return json.loads(metadata)
     except Exception as e:
         print(f"Error fetching whitelist rules: {e}")
     return []
@@ -54,36 +46,32 @@ def llm_allows(parsed_email: MailParser, description: str) -> bool:
         return False
 
 
-def matches_rule(parsed_email: MailParser, rule: dict) -> bool:
-    rtype = rule.get("type")
-    value = str(rule.get("value", "")).lower()
-    if rtype == "email":
-        addresses = [addr.lower() for _name, addr in parsed_email.from_]
-        if parsed_email.reply_to:
-            addresses += [addr.lower() for _name, addr in parsed_email.reply_to]
-        
-        # Debug logging
-        print(f"DEBUG: Checking email rule '{value}' against addresses: {addresses}")
-        
-        return any(value == addr for addr in addresses)
-    if rtype == "subject":
-        subject = (parsed_email.subject or "").lower()
-        
-        # Debug logging
-        print(f"DEBUG: Checking subject rule '{value}' against subject: '{subject}'")
-        
-        return value in subject
-    if rtype == "classification":
-        return llm_allows(parsed_email, value)
-    return False
-
-
-def should_store(parsed_email: MailParser) -> bool:
-    """Return True if email should be stored based on whitelist rules."""
-    rules = get_rules()
+def should_store(parsed_email: MailParser, user: str) -> bool:
+    """Check if an email should be stored based on whitelist rules."""
+    rules = get_rules(user)
+    
+    # If no rules, allow everything
     if not rules:
         return True
+    
+    # Check each rule
     for rule in rules:
-        if matches_rule(parsed_email, rule):
-            return True
+        rule_type = rule.get("type", "")
+        
+        if rule_type == "email" or rule_type == "sender":
+            sender_email = str(parsed_email.from_).lower()
+            if rule.get("value", "").lower() in sender_email:
+                return True
+        
+        elif rule_type == "subject":
+            subject = (parsed_email.subject or "").lower()
+            if rule.get("value", "").lower() in subject:
+                return True
+        
+        elif rule_type == "llm":
+            description = rule.get("description", "")
+            if llm_allows(parsed_email, description):
+                return True
+    
+    # If no rules match, block the email
     return False

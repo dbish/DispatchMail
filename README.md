@@ -1,46 +1,226 @@
-# dMail
+# dMail - Local Email AI Assistant
+
+dMail is an AI-powered email assistant that helps you manage your inbox locally using SQLite. It monitors your email, processes it with AI, and provides a web interface for managing drafts and responses.
+
+## Features
+
+- 🔄 Real-time email monitoring via IMAP
+- 🤖 AI-powered email processing with OpenAI GPT
+- 📱 Modern web interface for inbox management
+- 🎯 Customizable email filtering and whitelist rules
+- 📝 Draft generation and email composition
+- 🏷️ Email labeling and organization
+- 🗄️ Local SQLite database (no cloud dependencies)
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.8+
+- Node.js 16+ (for web interface)
+- Gmail account with 2FA enabled
+- OpenAI API key (optional, for AI features)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd dMail
+   ```
+
+2. Run the setup script:
+   ```bash
+   python setup.py
+   ```
+
+   This will:
+   - Install all dependencies
+   - Initialize the SQLite database
+   - Create a sample configuration file
+   - Guide you through account setup
+
+3. Configure your credentials:
+   - Edit `daemon-service/secrets.py` with your email credentials
+   - For Gmail, create an App Password: https://support.google.com/mail/answer/185833
+
+4. Start the services:
+   ```bash
+   # Terminal 1: Start the email daemon
+   cd daemon-service
+   python observer.py
+   
+   # Terminal 2: Start the web API
+   cd web-app
+   python api/api.py
+   
+   # Terminal 3: Start the frontend
+   cd web-app
+   npm run dev
+   ```
+
+5. Open http://localhost:5173 in your browser
+
+## Manual Setup
+
+If you prefer to set up manually:
+
+### 1. Install Dependencies
+
+```bash
+# Backend dependencies
+cd daemon-service
+pip install -r requirements.txt
+
+# Frontend dependencies
+cd ../web-app
+npm install
+```
+
+### 2. Configure Secrets
+
+Create `daemon-service/secrets.py`:
+```python
+# IMAP Configuration
+HOST = 'imap.gmail.com'
+USER = 'your-email@gmail.com'
+PASSWORD = 'your-app-password'  # Gmail App Password
+
+# OpenAI API Key (optional)
+OPENAI_API_KEY = 'your-openai-api-key'
+```
+
+### 3. Initialize Database
+
+```bash
+cd daemon-service
+python -c "from database import db; print('Database initialized!')"
+```
+
+### 4. Add User Account
+
+```bash
+cd daemon-service
+python -c "
+from database import db
+db.put_user('your-email@gmail.com', 'imap.gmail.com', 'your-app-password')
+print('User added!')
+"
+```
+
+## Gmail Setup
+
+For Gmail accounts, you need:
+
+1. **Enable 2FA**: Go to your Google Account settings and enable 2-factor authentication
+2. **Generate App Password**: 
+   - Go to Google Account > Security > App passwords
+   - Generate a new app password for "Mail"
+   - Use this password in your `secrets.py` file
 
 ## Configuration
 
-The daemon service reads several environment variables. Two new values are
-used for controlling how far back emails are fetched and where metadata is
-stored:
+### Email Filtering
 
-- `LOOKBACK_DAYS` &ndash; number of days to fetch emails on startup if no
-  previous timestamp has been recorded. Defaults to `5`.
-- `DYNAMODB_META_TABLE` &ndash; DynamoDB table that stores the last processed
-  timestamp for each IMAP user. Defaults to `dmail_metadata`.
-- `DYNAMODB_USERS_TABLE` &ndash; DynamoDB table containing IMAP credentials for
-  all monitored inboxes. Defaults to `dmail_users`.
+Configure whitelist rules via the web interface to control which emails are processed:
 
-## Email Filtering and Rule Management
+- **Sender-based rules**: Filter by sender email address
+- **Subject-based rules**: Filter by keywords in subject line
+- **AI-based rules**: Use natural language to describe filtering criteria
 
-Whitelisting rules for deciding which emails are stored can be managed via the
-`/api/whitelist` endpoint. Rules are saved in the metadata table under the
-`whitelist_rules` key and may match sender addresses, subject text, or rely on
-an LLM classification.
+### AI Prompts
 
-### Automatic Reprocessing
+Customize the AI behavior by setting:
 
-When whitelist rules are updated, the system automatically reprocesses emails from the last `LOOKBACK_DAYS` period to ensure consistency with the new rules:
+- **Reading Prompt**: Instructions for how the AI should analyze emails
+- **Draft Prompt**: Instructions for how the AI should generate responses
 
-1. **Removal of non-matching emails**: Emails that no longer pass the new whitelist rules are removed from the database.
-2. **Addition of newly matching emails**: Emails that now pass the new rules but were previously filtered out are fetched from Gmail and added to the inbox.
-3. **Background processing**: This reprocessing happens in the background without blocking the API response.
+## Database Schema
 
-This ensures that when users change their filtering rules, they immediately see the correct set of emails in their inbox based on the new criteria.
+The SQLite database contains three main tables:
 
-## LLM Actions
+- `emails`: Stores email content and processing status
+- `metadata`: Stores configuration, prompts, and user preferences
+- `users`: Stores IMAP account credentials
 
-When processing emails, the system's language model can perform several actions
-by returning JSON instructions:
+## API Endpoints
 
-- `{"label": "LabelName"}` &ndash; apply the given Gmail label.
-- `{"draft": "Reply text"}` &ndash; store a draft reply for human review.
-- `{"archive": true}` &ndash; archive the email by removing it from the Inbox.
+The web API provides REST endpoints for:
 
-## MCP Server
+- `GET /api/emails` - List emails
+- `GET /api/emails/<id>` - Get specific email
+- `POST /api/emails/<id>/draft` - Update draft
+- `GET/POST /api/prompts/reading` - Manage reading prompt
+- `GET/POST /api/prompts/draft` - Manage draft prompt
+- `GET/POST /api/whitelist` - Manage whitelist rules
+- `GET/POST /api/users` - Manage user accounts
 
-An optional MCP (Model Context Protocol) server exposes this functionality for
-other AIs. Tools are provided for listing emails, drafting replies, labeling,
-and archiving messages. Launch the server with `python daemon-service/mcp/server.py`.
+## Security Notes
+
+- All data is stored locally in SQLite
+- Email credentials are stored in plain text in `secrets.py`
+- Consider using environment variables for production deployments
+- The application binds to `0.0.0.0:5000` by default
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Authentication Failed**: 
+   - Make sure you're using an App Password, not your regular password
+   - Verify 2FA is enabled on your Google account
+
+2. **Database Errors**:
+   - Delete `dmail.db` and restart to reset the database
+   - Check file permissions in the project directory
+
+3. **Port Conflicts**:
+   - Web API runs on port 5000
+   - Frontend runs on port 5173
+   - Make sure these ports are available
+
+### Debug Mode
+
+Run with debug output:
+```bash
+cd daemon-service
+python observer.py --debug
+```
+
+## Development
+
+### Project Structure
+
+```
+dMail/
+├── daemon-service/          # Backend email processing
+│   ├── database.py         # SQLite database interface
+│   ├── observer.py         # Email monitoring daemon
+│   ├── ai_processor.py     # AI processing logic
+│   ├── config_reader.py    # Configuration management
+│   ├── filter_utils.py     # Email filtering
+│   └── secrets.py          # Credentials (create from sample)
+├── web-app/                # Frontend and API
+│   ├── api/api.py          # Flask web API
+│   ├── src/                # React frontend
+│   └── package.json        # Node.js dependencies
+└── setup.py                # Setup script
+```
+
+### Adding Features
+
+1. **New AI Prompts**: Add to `ai_processor.py`
+2. **New Filters**: Extend `filter_utils.py`
+3. **New API Endpoints**: Add to `web-app/api/api.py`
+4. **Frontend Changes**: Modify files in `web-app/src/`
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+For issues and questions:
+1. Check the troubleshooting section above
+2. Review the console logs for error messages
+3. Open an issue in the repository
