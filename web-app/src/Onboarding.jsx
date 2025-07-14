@@ -8,6 +8,7 @@ export default function Onboarding({ onComplete }) {
   const [rules, setRules] = useState([
     { type: 'subject', value: '[agent]' } // Default rule for [agent] subject
   ]);
+  const [systemPrompt, setSystemPrompt] = useState('You are an email reading assistant. Your primary task is to draft responses to emails that look like they expect a response. Use JSON format like {\'draft\': \'Reply text\'} for emails that need responses. You may also use {\'label\': \'LabelName\'} to categorize emails or {\'archive\': true} to archive emails that don\'t need responses. Focus on drafting helpful, professional responses for emails that require replies.');
   const [error, setError] = useState('');
 
   const handleCredentialsSubmit = async (e) => {
@@ -46,6 +47,28 @@ export default function Onboarding({ onComplete }) {
         return;
       }
 
+      setStep(3); // Move to email reading prompt step
+    } catch {
+      setError('Failed to connect to server');
+    }
+  };
+
+  const handlePromptSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      // Save the email reading system prompt
+      const promptRes = await fetch('/api/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: systemPrompt }),
+      });
+      if (!promptRes.ok) {
+        const data = await promptRes.json();
+        setError(data.error || 'Failed to save email reading prompt');
+        return;
+      }
+
       // Complete onboarding
       const onboardRes = await fetch('/api/onboard', {
         method: 'POST',
@@ -56,6 +79,21 @@ export default function Onboarding({ onComplete }) {
         const data = await onboardRes.json();
         setError(data.error || 'Failed to complete onboarding');
         return;
+      }
+
+      // Process any existing unprocessed emails with the new AI prompt
+      try {
+        const processRes = await fetch('/api/process_unprocessed_emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (processRes.ok) {
+          const processData = await processRes.json();
+          console.log(`Processed ${processData.processed_count} emails with AI`);
+        }
+      } catch (processError) {
+        console.log('Note: Could not process existing emails with AI:', processError);
+        // Don't fail onboarding if AI processing fails
       }
 
       localStorage.setItem('userEmail', email);
@@ -143,6 +181,39 @@ export default function Onboarding({ onComplete }) {
         
         <div className="onboarding-actions">
           <button type="button" onClick={() => setStep(1)}>Back</button>
+          <button type="submit">Next</button>
+        </div>
+        {error && <div className="error">{error}</div>}
+      </form>
+    );
+  }
+
+  if (step === 3) {
+    return (
+      <form className="onboarding" onSubmit={handlePromptSubmit}>
+        <h2>Step 3: Set Up Email Reading Assistant</h2>
+        <p>Configure how your AI assistant will read and respond to emails.</p>
+        
+        <div className="prompt-setup">
+          <label htmlFor="systemPrompt">
+            <strong>Email Reading System Prompt:</strong>
+          </label>
+          <textarea
+            id="systemPrompt"
+            rows={6}
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            placeholder="Enter instructions for how the AI should read and respond to emails..."
+            required
+          />
+          <p><small>
+            This prompt tells the AI how to handle your emails. The default prompt will 
+            draft responses for emails that appear to expect a reply.
+          </small></p>
+        </div>
+        
+        <div className="onboarding-actions">
+          <button type="button" onClick={() => setStep(2)}>Back</button>
           <button type="submit">Complete Setup</button>
         </div>
         {error && <div className="error">{error}</div>}

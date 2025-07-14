@@ -19,6 +19,7 @@ import json
 from string import Template
 from email_reply_parser import EmailReplyParser
 import boto3
+from dateutil import tz
 
 import smtplib
 # Import the email modules we'll need
@@ -45,7 +46,13 @@ def get_last_processed_date(user):
         response = meta_table.get_item(Key={"user": user})
         item = response.get("Item")
         if item and item.get("last_processed"):
-            return datetime.fromisoformat(item["last_processed"])
+            dt = datetime.fromisoformat(item["last_processed"])
+            # Ensure the datetime is timezone-aware and in UTC
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=tz.UTC)
+            elif dt.tzinfo != tz.UTC:
+                dt = dt.astimezone(tz.UTC)
+            return dt
     except Exception as e:
         print(f"Error getting last processed date: {e}")
     return None
@@ -56,9 +63,15 @@ def update_last_processed_date(user, dt):
     if not dt:
         return
     try:
+        # Convert to UTC if timezone-aware, otherwise assume UTC
+        if dt.tzinfo is not None:
+            dt_utc = dt.astimezone(tz.UTC)
+        else:
+            dt_utc = dt.replace(tzinfo=tz.UTC)
+        
         current = get_last_processed_date(user)
-        if not current or dt > current:
-            meta_table.put_item(Item={"user": user, "last_processed": dt.isoformat()})
+        if not current or dt_utc > current:
+            meta_table.put_item(Item={"user": user, "last_processed": dt_utc.isoformat()})
     except Exception as e:
         print(f"Error updating last processed date: {e}")
 
@@ -93,6 +106,14 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
 
     # Store into DynamoDB
     try:
+        # Convert email date to UTC before storing
+        utc_date = None
+        if date:
+            if date.tzinfo is not None:
+                utc_date = date.astimezone(tz.UTC)
+            else:
+                utc_date = date.replace(tzinfo=tz.UTC)
+        
         email_table.put_item(
             Item={
                 'message_id': message_id or '',
@@ -100,15 +121,15 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
                 'to': json.dumps(to),
                 'from': json.dumps(user_info),
                 'body': all_body,
-                'date': date.isoformat() if date else '',
+                'date': utc_date.isoformat() if utc_date else '',
                 'processed': False,
                 'action': '',
                 'draft': '',
                 'account': current_user,
             }
         )
-        if date:
-            update_last_processed_date(current_user, date)
+        if utc_date:
+            update_last_processed_date(current_user, utc_date)
     except Exception as e:
         print(f'Error saving email to DynamoDB: {e}')
 
@@ -160,8 +181,12 @@ async def imap_loop(host, user, password) -> None:
         if last_processed:
             since_dt = last_processed
         else:
-            since_dt = datetime.utcnow() - timedelta(days=LOOKBACK_DAYS)
-        since_str = since_dt.strftime('%d-%b-%Y')
+            since_dt = datetime.now(tz.UTC) - timedelta(days=LOOKBACK_DAYS)
+        
+        # Use the day before to ensure we catch all emails due to timezone issues
+        search_dt = since_dt - timedelta(days=1)
+        since_str = search_dt.strftime('%d-%b-%Y')
+        print(f"Searching for emails since (UTC): {since_dt} -> searching from {since_str}")
 
         response = await imap_client.search(f'(SINCE {since_str})')
         search_uids = response.lines[0].split()
@@ -179,6 +204,18 @@ async def imap_loop(host, user, password) -> None:
             for start, middle, _end in zip(iterator, iterator, iterator):
                 try:
                     parsed_email = mailparser.parse_from_bytes(middle)
+
+                    # Filter out emails that are actually older than our target date
+                    if parsed_email.date and since_dt:
+                        # Ensure both dates are timezone-aware for comparison
+                        email_date = parsed_email.date
+                        if email_date.tzinfo is None:
+                            email_date = email_date.replace(tzinfo=tz.UTC)
+                        elif email_date.tzinfo != tz.UTC:
+                            email_date = email_date.astimezone(tz.UTC)
+                        
+                        if email_date <= since_dt:
+                            continue
 
                     # Apply whitelist filtering
                     allow = await asyncio.to_thread(filter_utils.should_store, parsed_email)
@@ -217,27 +254,45 @@ async def imap_loop(host, user, password) -> None:
                         parsed_email.message_id,
                         parsed_email.date
                     )
-                    # Don't automatically process with AI - only store the email
-                    # asyncio.create_task(ai_processor.handle_email(user, parsed_email))
+                    # Enable automatic AI processing for new emails
+                    try:
+                        asyncio.create_task(ai_processor.handle_email(user, parsed_email))
+                        print(f"Queued AI processing for email: {parsed_email.message_id}")
+                    except Exception as e:
+                        print(f"Error queuing AI processing for email {parsed_email.message_id}: {e}")
                     print(f"Total processed messages tracked: {len(processed_message_ids)}")
                 except Exception as e:
                     print(f'Error processing individual email: {str(e)}')
                     print(f'Skipping this email and continuing with the next one')
                     continue
-        idle_task = await imap_client.idle_start(timeout=60)
-        await imap_client.wait_server_push()
-        imap_client.idle_done()
-        await wait_for(idle_task, timeout=5)
+        try:
+            idle_task = await imap_client.idle_start(timeout=30)  # Reduced from 60 to 30 seconds
+            await imap_client.wait_server_push()
+            imap_client.idle_done()
+            await wait_for(idle_task, timeout=3)  # Reduced from 5 to 3 seconds
+        except asyncio.TimeoutError:
+            print(f"IDLE timeout for {user}, continuing...")
+            try:
+                imap_client.idle_done()
+            except:
+                pass  # Ignore errors when stopping IDLE
+        except Exception as e:
+            print(f"IDLE error for {user}: {e}")
+            # Break out of the loop to reconnect
+            break
 
 async def loop_and_retry(host, user, password):
     consecutive_auth_failures = 0
     max_auth_failures = 3
+    connection_failures = 0
     
     while True:
         try:
+            print(f"Starting IMAP loop for {user} (attempt #{connection_failures + 1})")
             await imap_loop(host, user, password)
             # Reset failure count on successful connection
             consecutive_auth_failures = 0
+            connection_failures = 0
         except aioimaplib.IMAP4Error as e:
             error_str = str(e).lower()
             if "authentication failed" in error_str or "login failed" in error_str:
@@ -252,11 +307,15 @@ async def loop_and_retry(host, user, password):
                 # Wait longer for auth failures to avoid getting blocked
                 await asyncio.sleep(30)
             else:
-                print(f'IMAP Error for {user}: {str(e)}')
-                await asyncio.sleep(5)
+                connection_failures += 1
+                print(f'IMAP Error for {user} (connection failure #{connection_failures}): {str(e)}')
+                # Shorter wait for connection issues
+                await asyncio.sleep(min(connection_failures * 2, 15))  # Exponential backoff, max 15 seconds
         except Exception as e:
-            print(f'Exception for {user}: {str(e)}')
-            await asyncio.sleep(5)
+            connection_failures += 1
+            print(f'Exception for {user} (connection failure #{connection_failures}): {str(e)}')
+            # Shorter wait for general exceptions
+            await asyncio.sleep(min(connection_failures * 2, 15))  # Exponential backoff, max 15 seconds
 
 
 async def monitor_accounts():

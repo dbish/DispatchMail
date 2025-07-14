@@ -13,6 +13,9 @@
   --button-text: #ffffff;
   --border-color: #ccc;
   --processed-bg: #333;
+  --tag-bg: #4a5568;
+  --tag-text: #ffffff;
+  --tag-border: #6b7280;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -29,6 +32,9 @@
   --button-text: #ffffff;
   --border-color: #ccc;
   --processed-bg: #f2f2f2;
+  --tag-bg: #e2e8f0;
+  --tag-text: #2d3748;
+  --tag-border: #cbd5e0;
 }
 
 .theme-dark {
@@ -40,6 +46,9 @@
   --button-text: #ffffff;
   --border-color: #ccc;
   --processed-bg: #333;
+  --tag-bg: #4a5568;
+  --tag-text: #ffffff;
+  --tag-border: #6b7280;
 }
 
 a {

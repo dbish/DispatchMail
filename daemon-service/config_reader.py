@@ -37,3 +37,6 @@ DYNAMODB_USERS_TABLE = os.getenv('DYNAMODB_USERS_TABLE', 'diamond_dmail_users')
 # Number of days to look back when fetching emails on startup
 # if no previous timestamp is stored.
 LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '5'))
+
+# OpenAI API Key
+OPENAI_API_KEY = secrets.OPENAI_API_KEY

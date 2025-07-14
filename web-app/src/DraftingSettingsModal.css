@@ -20,6 +20,29 @@
   max-width: 95%;
 }
 
+.awaiting-human-modal {
+  width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.email-info {
+  background: #f5f5f5;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.email-info .subject {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.email-info .from {
+  color: #666;
+  font-size: 0.9rem;
+}
+
 .prompt-select {
   display: flex;
   gap: 0.5rem;
@@ -42,10 +65,98 @@
 .right-col textarea {
   width: 100%;
   margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.right-col textarea.readonly {
+  background-color: #f8f9fa;
+  color: #666;
+}
+
+.modal-content label {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  display: block;
+  color: #333;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.modal-actions button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.rerun-btn {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.rerun-btn:hover:not(:disabled) {
+  background: #0056b3;
+  border-color: #0056b3;
+}
+
+.rerun-btn:disabled {
+  background: #6c757d;
+  border-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.delete-btn {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+
+.delete-btn:hover {
+  background: #c82333;
+  border-color: #c82333;
+}
+
+.send-btn {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: #218838;
+  border-color: #218838;
+}
+
+.send-btn:disabled {
+  background: #6c757d;
+  border-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.delete-btn:disabled {
+  background: #6c757d;
+  border-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.awaiting-tag {
+  background-color: #ffc107;
+  color: #212529;
+  border-color: #ffc107;
 }
