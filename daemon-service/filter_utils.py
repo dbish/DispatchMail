@@ -7,13 +7,12 @@ from mailparser import MailParser
 from config_reader import AWS_REGION, DYNAMODB_META_TABLE
 
 try:
-    import openai
+    from openai import OpenAI
 except ImportError:  # openai optional
-    openai = None
+    OpenAI = None
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if openai and OPENAI_API_KEY:
-    openai.api_key = OPENAI_API_KEY
+client = OpenAI(api_key=OPENAI_API_KEY) if OpenAI and OPENAI_API_KEY else None
 
 # DynamoDB meta table
 
@@ -35,12 +34,12 @@ def get_rules():
 
 def llm_allows(parsed_email: MailParser, description: str) -> bool:
     """Use an LLM to decide if an email matches a rule."""
-    if not (openai and OPENAI_API_KEY):
+    if not client:
         return False
     body = parsed_email.text_plain[0] if parsed_email.text_plain else ""
     content = f"Subject: {parsed_email.subject}\nFrom: {parsed_email.from_}\n\n{body}"
     try:
-        resp = openai.ChatCompletion.create(
+        resp = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": description},
@@ -62,9 +61,17 @@ def matches_rule(parsed_email: MailParser, rule: dict) -> bool:
         addresses = [addr.lower() for _name, addr in parsed_email.from_]
         if parsed_email.reply_to:
             addresses += [addr.lower() for _name, addr in parsed_email.reply_to]
+        
+        # Debug logging
+        print(f"DEBUG: Checking email rule '{value}' against addresses: {addresses}")
+        
         return any(value == addr for addr in addresses)
     if rtype == "subject":
         subject = (parsed_email.subject or "").lower()
+        
+        # Debug logging
+        print(f"DEBUG: Checking subject rule '{value}' against subject: '{subject}'")
+        
         return value in subject
     if rtype == "classification":
         return llm_allows(parsed_email, value)

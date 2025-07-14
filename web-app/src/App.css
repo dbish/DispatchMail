@@ -50,6 +50,37 @@
   padding-left: 1rem;
 }
 
+.inbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.inbox-header h2 {
+  margin: 0;
+}
+
+.inbox-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.refreshing {
+  color: var(--link-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.last-updated {
+  color: #666;
+  font-size: 0.8rem;
+}
+
 .system-input {
   width: 100%;
   margin-bottom: 1rem;
@@ -91,7 +122,7 @@
 .onboarding {
   display: flex;
   flex-direction: column;
-  max-width: 300px;
+  max-width: 500px;
   margin: 2rem auto;
   gap: 0.5rem;
 }
@@ -101,6 +132,55 @@
 .onboarding button {
   padding: 0.5rem;
 }
+.onboarding p {
+  margin: 0.5rem 0;
+  color: var(--text-color);
+}
+
+.whitelist-rules {
+  margin: 1rem 0;
+}
+
+.rule-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.rule-row select {
+  padding: 0.5rem;
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  min-width: 120px;
+}
+
+.rule-row input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.onboarding-actions button {
+  flex: 1;
+}
+
 .error {
   color: red;
+  padding: 0.5rem;
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid red;
+  border-radius: 4px;
 }

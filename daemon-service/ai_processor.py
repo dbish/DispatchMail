@@ -3,7 +3,7 @@ import json
 import os
 from typing import Optional
 
-import openai
+from openai import OpenAI
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import boto3
@@ -17,8 +17,10 @@ DEFAULT_PROMPT = (
     "Use JSON like {'label': 'LabelName'}, {'archive': true}, or {'draft': 'Reply text'} in any combination."
 )
 
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
-openai.api_key = OPENAI_API_KEY
 meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
 email_table = dynamodb.Table(DYNAMODB_TABLE)
 
@@ -112,7 +114,7 @@ async def handle_email(user: str, parsed_email) -> None:
     content = f"Subject: {parsed_email.subject}\nFrom: {parsed_email.from_}\n\n{body}"
 
     def run_openai():
-        return openai.ChatCompletion.create(
+        return client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {

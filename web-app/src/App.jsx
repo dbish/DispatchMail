@@ -23,14 +23,62 @@ function App() {
     },
   ]);
   const [selectedDraft, setSelectedDraft] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastModified, setLastModified] = useState('');
 
   useEffect(() => {
     if (!currentUser) return;
-    fetch('/api/emails')
-      .then((res) => res.json())
-      .then((data) => setEmails(data))
-      .catch((err) => console.error('Failed to fetch emails', err));
-  }, [currentUser]);
+    
+    const fetchEmails = async () => {
+      setIsRefreshing(true);
+      try {
+        const response = await fetch('/api/emails');
+        const data = await response.json();
+        setEmails(data.emails || []);
+        setLastModified(data.last_modified || '');
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.error('Failed to fetch emails', err);
+      } finally {
+        setIsRefreshing(false);
+      }
+    };
+
+    const checkForUpdates = async () => {
+      try {
+        const response = await fetch('/api/emails/status');
+        
+        // If the status endpoint doesn't exist, fall back to full refresh
+        if (!response.ok) {
+          console.log('Status endpoint not available, falling back to full refresh');
+          await fetchEmails();
+          return;
+        }
+        
+        const status = await response.json();
+        
+        // Only fetch full emails if there are changes
+        if (status.last_modified !== lastModified) {
+          console.log('New emails detected, refreshing...');
+          await fetchEmails();
+        }
+      } catch (err) {
+        console.error('Failed to check email status, falling back to full refresh:', err);
+        // Fallback to full refresh if status check fails
+        await fetchEmails();
+      }
+    };
+
+    // Initial fetch
+    fetchEmails();
+    
+    // Set up smart polling every 5 seconds
+    const intervalId = setInterval(checkForUpdates, 5000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId);
+  }, [currentUser, lastModified]);
 
   useEffect(() => {
     fetch('/api/draft_prompt')
@@ -88,7 +136,17 @@ function App() {
           </ul>
         </aside>
         <section className="right-panel">
-          <h2>Inbox ({unprocessedCount})</h2>
+          <div className="inbox-header">
+            <h2>Inbox ({unprocessedCount})</h2>
+            <div className="inbox-status">
+              {isRefreshing && <span className="refreshing">🔄 Refreshing...</span>}
+              {lastUpdated && (
+                <span className="last-updated">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          </div>
           <div className="email-list">
             {emails.map((email) => (
               <div
@@ -156,8 +214,14 @@ function App() {
               body: JSON.stringify({ id: selectedDraft.id, draft: text }),
             });
             setSelectedDraft(null);
-            const data = await (await fetch('/api/emails')).json();
-            setEmails(data);
+            
+            // Force refresh after sending
+            setLastModified('');
+            const response = await fetch('/api/emails');
+            const data = await response.json();
+            setEmails(data.emails || []);
+            setLastModified(data.last_modified || '');
+            setLastUpdated(new Date());
           }}
         />
       )}

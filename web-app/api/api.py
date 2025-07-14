@@ -5,37 +5,57 @@ import asyncio
 import imaplib
 import threading
 import importlib.util
+import sys
 from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
 
 import boto3
+from boto3.dynamodb.conditions import Attr
 from flask import Flask, jsonify, request
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-observer_path = os.path.join(BASE_DIR, 'daemon-service', 'observer.py')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+daemon_service_dir = os.path.join(BASE_DIR, 'daemon-service')
+
+# Add daemon-service to Python path so imports work
+sys.path.insert(0, daemon_service_dir)
+
+observer_path = os.path.join(daemon_service_dir, 'observer.py')
 spec = importlib.util.spec_from_file_location('observer', observer_path)
 observer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(observer)
 
-filter_path = os.path.join(BASE_DIR, 'daemon-service', 'filter_utils.py')
+filter_path = os.path.join(daemon_service_dir, 'filter_utils.py')
 spec_f = importlib.util.spec_from_file_location('filter_utils', filter_path)
 filter_utils = importlib.util.module_from_spec(spec_f)
 spec_f.loader.exec_module(filter_utils)
 
 # Load MCP server utilities
-mcp_path = os.path.join(BASE_DIR, 'daemon-service', 'mcp', 'server.py')
-spec_mcp = importlib.util.spec_from_file_location('mcp_server', mcp_path)
-mcp_server = importlib.util.module_from_spec(spec_mcp)
-spec_mcp.loader.exec_module(mcp_server)
+# mcp_path = os.path.join(daemon_service_dir, 'mcp', 'server.py')
+# spec_mcp = importlib.util.spec_from_file_location('mcp_server', mcp_path)
+# mcp_server = importlib.util.module_from_spec(spec_mcp)
+# spec_mcp.loader.exec_module(mcp_server)
 
+# Temporary placeholder for MCP functions
+class MockMCPServer:
+    def draft_email(self, message_id, draft):
+        return {'error': 'MCP server not available'}
+    def add_label(self, message_id, label):
+        return {'error': 'MCP server not available'}
+    def archive_email(self, message_id):
+        return {'error': 'MCP server not available'}
 
-AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
-DYNAMODB_TABLE = os.getenv('DYNAMODB_TABLE', 'dmail_emails')
-HOST = os.getenv('HOST', 'imap.gmail.com')
-DYNAMODB_META_TABLE = os.getenv('DYNAMODB_META_TABLE', 'dmail_metadata')
-DYNAMODB_USERS_TABLE = os.getenv('DYNAMODB_USERS_TABLE', 'dmail_users')
-LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '5'))
+mcp_server = MockMCPServer()
+
+# Import config_reader to get AWS settings
+import config_reader
+
+AWS_REGION = config_reader.AWS_REGION
+DYNAMODB_TABLE = config_reader.DYNAMODB_TABLE
+DYNAMODB_META_TABLE = config_reader.DYNAMODB_META_TABLE
+DYNAMODB_USERS_TABLE = config_reader.DYNAMODB_USERS_TABLE
+LOOKBACK_DAYS = config_reader.LOOKBACK_DAYS
+HOST = config_reader.HOST
 
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 email_table = dynamodb.Table(DYNAMODB_TABLE)
@@ -44,6 +64,13 @@ users_table = dynamodb.Table(DYNAMODB_USERS_TABLE)
 
 # Track running observer threads to avoid duplicates
 observer_threads = {}
+
+# Track reprocessing status
+reprocessing_status = {
+    'is_reprocessing': False,
+    'start_time': None,
+    'message': ''
+}
 
 
 def start_observer(host, user, password):
@@ -136,6 +163,129 @@ def hydrate_inbox(host, user, password):
     except Exception as e:
         print(f"Error during hydration for {user}: {e}")
 
+
+def reprocess_emails_with_new_rules():
+    """Reprocess emails from the last LOOKBACK_DAYS period with new whitelist rules."""
+    global reprocessing_status
+    
+    reprocessing_status['is_reprocessing'] = True
+    reprocessing_status['start_time'] = datetime.utcnow().isoformat()
+    reprocessing_status['message'] = 'Starting email reprocessing...'
+    
+    print("Starting email reprocessing with new whitelist rules...")
+    
+    try:
+        # Get all users to reprocess their emails
+        users_response = users_table.scan()
+        users = users_response.get('Items', [])
+        
+        total_users = len(users)
+        
+        for i, user_item in enumerate(users):
+            user_email = user_item.get('user')
+            host = user_item.get('host')
+            password = user_item.get('password')
+            
+            if not all([user_email, host, password]):
+                continue
+                
+            reprocessing_status['message'] = f'Processing user {i+1}/{total_users}: {user_email}'
+            print(f"Reprocessing emails for user: {user_email}")
+            
+            # Get the reprocessing time window
+            since_dt = datetime.utcnow() - timedelta(days=LOOKBACK_DAYS)
+            
+            # Get all emails from this user in the time window
+            response = email_table.scan(
+                FilterExpression=Attr('account').eq(user_email) & 
+                                Attr('date').gte(since_dt.isoformat())
+            )
+            stored_emails = response.get('Items', [])
+            
+            # Create a set of message IDs that are currently stored
+            stored_message_ids = {email.get('message_id') for email in stored_emails}
+            
+            # Re-evaluate stored emails against new rules
+            emails_to_remove = []
+            for email in stored_emails:
+                # Reconstruct a mailparser-like object to test against rules
+                class MockParsedEmail:
+                    def __init__(self, email_item):
+                        self.message_id = email_item.get('message_id')
+                        self.subject = email_item.get('subject')
+                        self.from_ = json.loads(email_item.get('from', '[]'))
+                        self.to = json.loads(email_item.get('to', '[]'))
+                        self.reply_to = []  # Not stored in our DB currently
+                        self.date = datetime.fromisoformat(email_item.get('date')) if email_item.get('date') else None
+                
+                mock_email = MockParsedEmail(email)
+                
+                # Check if email still passes the new rules
+                if not filter_utils.should_store(mock_email):
+                    emails_to_remove.append(email['message_id'])
+                    print(f"Email {email['message_id']} no longer passes whitelist rules - will be removed")
+            
+            # Remove emails that no longer pass the rules
+            if emails_to_remove:
+                reprocessing_status['message'] = f'Removing {len(emails_to_remove)} emails that no longer match rules...'
+            
+            for message_id in emails_to_remove:
+                try:
+                    email_table.delete_item(Key={'message_id': message_id})
+                    print(f"Removed email {message_id}")
+                except Exception as e:
+                    print(f"Error removing email {message_id}: {e}")
+            
+            # Now fetch emails from Gmail to find any that now pass the rules
+            reprocessing_status['message'] = f'Fetching emails from Gmail for {user_email}...'
+            
+            try:
+                imap = imaplib.IMAP4_SSL(host)
+                imap.login(user_email, password)
+                imap.select("INBOX")
+                
+                since_str = since_dt.strftime("%d-%b-%Y")
+                typ, data = imap.search(None, f"(SINCE {since_str})")
+                ids = data[0].split()
+                
+                newly_processed = 0
+                total_emails = len(ids)
+                
+                for j, msg_id in enumerate(ids):
+                    if j % 10 == 0:  # Update status every 10 emails
+                        reprocessing_status['message'] = f'Processing email {j+1}/{total_emails} for {user_email}...'
+                    
+                    typ, msg_data = imap.fetch(msg_id, "(RFC822)")
+                    for part in msg_data:
+                        if isinstance(part, tuple):
+                            parsed = observer.mailparser.parse_from_bytes(part[1])
+                            
+                            # Skip if we already have this email stored
+                            if parsed.message_id in stored_message_ids:
+                                continue
+                            
+                            # Check if this email now passes the new rules
+                            if filter_utils.should_store(parsed):
+                                process_email(user_email, parsed)
+                                newly_processed += 1
+                                print(f"Email {parsed.message_id} now passes whitelist rules - added to inbox")
+                
+                imap.logout()
+                print(f"Processed {newly_processed} new emails for {user_email}")
+                
+            except Exception as e:
+                print(f"Error reprocessing emails from Gmail for {user_email}: {e}")
+                
+    except Exception as e:
+        print(f"Error during email reprocessing: {e}")
+        reprocessing_status['message'] = f'Error during reprocessing: {str(e)}'
+    
+    finally:
+        reprocessing_status['is_reprocessing'] = False
+        reprocessing_status['message'] = 'Email reprocessing completed.'
+        print("Email reprocessing completed.")
+
+
 app = Flask(__name__)
 
 @app.route('/api/time')
@@ -164,9 +314,61 @@ def get_emails():
                 'draft': item.get('draft', ''),
                 'account': item.get('account', ''),
             })
-        return jsonify(emails)
+        
+        # Add a timestamp for change detection
+        last_modified = max([email.get('date', '') for email in emails] + [''])
+        
+        return jsonify({
+            'emails': emails,
+            'last_modified': last_modified,
+            'count': len(emails)
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/emails/status')
+def get_emails_status():
+    """Return just the count and last modified timestamp for efficient polling."""
+    try:
+        response = email_table.scan()
+        items = response.get('Items', [])
+        
+        # Get the most recent email date as last modified
+        last_modified = ''
+        if items:
+            dates = [item.get('date', '') for item in items if item.get('date')]
+            if dates:
+                last_modified = max(dates)
+        
+        unprocessed_count = sum(1 for item in items if not item.get('processed', False))
+        
+        return jsonify({
+            'count': len(items),
+            'unprocessed_count': unprocessed_count,
+            'last_modified': last_modified
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/verify_credentials', methods=['POST'])
+def verify_credentials():
+    """Verify Gmail credentials without starting email processing."""
+    data = request.get_json() or {}
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password:
+        return jsonify({'error': 'email and password required'}), 400
+
+    # verify credentials with Gmail
+    try:
+        imap = imaplib.IMAP4_SSL(HOST)
+        imap.login(email, password)
+        imap.logout()
+        return jsonify({'status': 'verified'})
+    except Exception as e:
+        return jsonify({'error': 'Invalid IMAP credentials'}), 401
 
 
 @app.route('/api/onboard', methods=['POST'])
@@ -177,7 +379,7 @@ def onboard():
     if not email or not password:
         return jsonify({'error': 'email and password required'}), 400
 
-    # verify credentials with Gmail
+    # verify credentials with Gmail (again for safety)
     try:
         imap = imaplib.IMAP4_SSL(HOST)
         imap.login(email, password)
@@ -190,6 +392,7 @@ def onboard():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+    # Only start email processing after whitelist rules are configured
     hydrate_inbox(HOST, email, password)
     start_observer(HOST, email, password)
 
@@ -252,6 +455,12 @@ def whitelist_rules():
             meta_table.put_item(
                 Item={'user': 'whitelist_rules', 'rules': json.dumps(rules)}
             )
+            
+            # Trigger reprocessing of emails with new rules
+            print("Whitelist rules updated, triggering email reprocessing...")
+            reprocessing_thread = threading.Thread(target=reprocess_emails_with_new_rules, daemon=True)
+            reprocessing_thread.start()
+            
         except Exception as e:
             return jsonify({'error': str(e)}), 500
         return jsonify({'status': 'saved'})
@@ -386,4 +595,10 @@ def send_draft():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     return jsonify({'status': 'sent'})
+
+
+@app.route('/api/reprocessing_status')
+def get_reprocessing_status():
+    """Return the current reprocessing status."""
+    return jsonify(reprocessing_status)
 

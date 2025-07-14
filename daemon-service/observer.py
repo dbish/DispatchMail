@@ -124,11 +124,36 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
     
 
 async def imap_loop(host, user, password) -> None:
-    imap_client = aioimaplib.IMAP4_SSL(host=host, timeout=30)
-    await imap_client.wait_hello_from_server()
-
-    await imap_client.login(user, password)
-    await imap_client.select('INBOX')
+    # Gmail requires port 993 for SSL connections
+    port = 993 if 'gmail.com' in host else 993  # Default to 993 for most secure IMAP
+    
+    print(f"Connecting to {host}:{port} for user {user}")
+    
+    try:
+        imap_client = aioimaplib.IMAP4_SSL(host=host, port=port, timeout=30)
+        await imap_client.wait_hello_from_server()
+        print(f"Successfully connected to {host}")
+        
+        # Try to login with better error handling
+        print(f"Attempting to login as {user}")
+        await imap_client.login(user, password)
+        print(f"Successfully logged in as {user}")
+        
+        await imap_client.select('INBOX')
+        print("Successfully selected INBOX")
+        
+    except aioimaplib.IMAP4Error as e:
+        print(f"IMAP Error during connection/login for {user}: {str(e)}")
+        if "authentication failed" in str(e).lower():
+            print("Authentication failed - check your app password!")
+            print("Make sure:")
+            print("1. 2FA is enabled on your Google account")
+            print("2. You're using an App Password (not your regular password)")
+            print("3. The app password is correct")
+        raise
+    except Exception as e:
+        print(f"Unexpected error during connection/login for {user}: {str(e)}")
+        raise
 
     while True:
         last_processed = get_last_processed_date(user)
@@ -192,7 +217,8 @@ async def imap_loop(host, user, password) -> None:
                         parsed_email.message_id,
                         parsed_email.date
                     )
-                    asyncio.create_task(ai_processor.handle_email(user, parsed_email))
+                    # Don't automatically process with AI - only store the email
+                    # asyncio.create_task(ai_processor.handle_email(user, parsed_email))
                     print(f"Total processed messages tracked: {len(processed_message_ids)}")
                 except Exception as e:
                     print(f'Error processing individual email: {str(e)}')
@@ -204,9 +230,30 @@ async def imap_loop(host, user, password) -> None:
         await wait_for(idle_task, timeout=5)
 
 async def loop_and_retry(host, user, password):
+    consecutive_auth_failures = 0
+    max_auth_failures = 3
+    
     while True:
         try:
             await imap_loop(host, user, password)
+            # Reset failure count on successful connection
+            consecutive_auth_failures = 0
+        except aioimaplib.IMAP4Error as e:
+            error_str = str(e).lower()
+            if "authentication failed" in error_str or "login failed" in error_str:
+                consecutive_auth_failures += 1
+                print(f'Authentication failed for {user} (attempt {consecutive_auth_failures}/{max_auth_failures}): {str(e)}')
+                
+                if consecutive_auth_failures >= max_auth_failures:
+                    print(f'Max authentication failures reached for {user}. Stopping retries.')
+                    print('Please check your Gmail app password and configuration.')
+                    return
+                
+                # Wait longer for auth failures to avoid getting blocked
+                await asyncio.sleep(30)
+            else:
+                print(f'IMAP Error for {user}: {str(e)}')
+                await asyncio.sleep(5)
         except Exception as e:
             print(f'Exception for {user}: {str(e)}')
             await asyncio.sleep(5)
