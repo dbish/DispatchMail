@@ -61,6 +61,9 @@ DYNAMODB_USERS_TABLE = config_reader.DYNAMODB_USERS_TABLE
 LOOKBACK_DAYS = config_reader.LOOKBACK_DAYS
 HOST = config_reader.HOST
 
+# Get OpenAI API key from config_reader (which reads from secrets file)
+OPENAI_API_KEY = config_reader.OPENAI_API_KEY
+
 dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
 email_table = dynamodb.Table(DYNAMODB_TABLE)
 meta_table = dynamodb.Table(DYNAMODB_META_TABLE)
@@ -77,8 +80,23 @@ reprocessing_status = {
 }
 
 # Initialize OpenAI client
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+def get_prompt():
+    """Get the reading prompt from the database."""
+    try:
+        resp = meta_table.get_item(Key={'user': 'reading_prompt'})
+        return resp.get('Item', {}).get('prompt', '')
+    except:
+        return ''
+
+def get_draft_prompt():
+    """Get the draft prompt from the database."""
+    try:
+        resp = meta_table.get_item(Key={'user': 'draft_prompt'})
+        return resp.get('Item', {}).get('prompt', '')
+    except:
+        return ''
 
 def start_observer(host, user, password):
     """Start background monitoring for a user's inbox."""
@@ -169,13 +187,93 @@ def process_email(current_user, parsed_email):
     # Enable automatic AI processing for whitelisted emails
     if OPENAI_API_KEY and client:
         try:
-            # Create a task to process the email asynchronously
-            asyncio.create_task(process_email_with_ai(current_user, parsed_email))
-            print(f"Queued AI processing for email: {parsed_email.message_id}")
+            # Process the email with AI immediately using the same logic as manual processing
+            process_email_with_ai_sync(current_user, parsed_email)
+            print(f"Automatically processed email with AI: {parsed_email.message_id}")
         except Exception as e:
-            print(f"Error queuing AI processing for email {parsed_email.message_id}: {e}")
+            print(f"Error in automatic AI processing for email {parsed_email.message_id}: {e}")
     else:
         print("OpenAI API key not configured, skipping AI processing")
+
+
+def process_email_with_ai_sync(user, parsed_email):
+    """Process an email with AI synchronously."""
+    try:
+        # Extract key content for LLM processing
+        print(f"DEBUG: Extracting key content for email {parsed_email.message_id}")
+        key_content = extract_key_content_from_email_item(parsed_email)
+        print(f"DEBUG: Key content extracted: {len(key_content)} characters")
+        
+        # Get the prompts before the API call to avoid scoping issues
+        system_prompt = get_prompt()
+        draft_instructions = get_draft_prompt()
+        print(f"DEBUG: Got system_prompt: {system_prompt}")
+        print(f"DEBUG: Got draft_instructions: {draft_instructions}")
+        
+        # Process with AI
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"{system_prompt}\nDrafting instructions: {draft_instructions}",
+                },
+                {
+                    "role": "user",
+                    "content": f"Email content:\n{key_content}\n\nRespond with ONLY a JSON object. No other text or explanation."
+                },
+            ],
+            temperature=0,
+        )
+        
+        response_text = completion.choices[0].message.content.strip()
+        
+        # Clean up the response - remove markdown code blocks if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]  # Remove ```json
+        if response_text.startswith('```'):
+            response_text = response_text[3:]  # Remove ```
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]  # Remove trailing ```
+        response_text = response_text.strip()
+        
+        # Parse the JSON response
+        try:
+            ai_response = json.loads(response_text)
+        except json.JSONDecodeError:
+            ai_response = {"reviewed": True}  # Default fallback
+        
+        # Extract draft if present
+        draft_text = ai_response.get('draft') or ai_response.get('response')
+        
+        # Update the email in DynamoDB
+        update_expr = "SET #processed = :p, #action = :a"
+        expr_values = {
+            ":p": True,
+            ":a": "drafted" if draft_text else "reviewed (no action needed)"
+        }
+        
+        expr_names = {
+            "#processed": "processed",
+            "#action": "action"
+        }
+        
+        if draft_text:
+            update_expr += ", draft = :d, llm_prompt = :lp"
+            expr_values[":d"] = draft_text
+            expr_values[":lp"] = key_content  # Store what was sent to LLM
+        
+        email_table.update_item(
+            Key={'message_id': parsed_email.message_id},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_values
+        )
+        
+        print(f"AI processing completed for email: {parsed_email.message_id} - Action: {expr_values[':a']}")
+        
+    except Exception as e:
+        print(f"Error in AI processing for email {parsed_email.message_id}: {e}")
 
 
 async def process_email_with_ai(user, parsed_email):
@@ -884,9 +982,12 @@ def extract_key_content_from_email_item(email_item) -> str:
 @app.route('/api/reprocess_single_email', methods=['POST'])
 def reprocess_single_email():
     """Reprocess a single email with the current prompts."""
+    print(f"DEBUG: reprocess_single_email function called")
     try:
         data = request.get_json() or {}
         email_id = data.get('email_id')
+        
+        print(f"DEBUG: Processing email_id: {email_id}")
         
         if not email_id:
             return jsonify({'error': 'email_id required'}), 400
@@ -899,9 +1000,12 @@ def reprocess_single_email():
             return jsonify({'error': 'Email not found'}), 404
         
         # Extract key content for LLM processing
+        print(f"DEBUG: Extracting key content for email {email_item.get('message_id')}")
         key_content = extract_key_content_from_email_item(email_item)
+        print(f"DEBUG: Key content extracted: {len(key_content)} characters")
         
         # Create a mock parsed email object for compatibility
+        print(f"DEBUG: Creating MockParsedEmail object")
         class MockParsedEmail:
             def __init__(self, email_item):
                 self.message_id = email_item.get('message_id')
@@ -915,75 +1019,83 @@ def reprocess_single_email():
                     except:
                         pass
         
+        print(f"DEBUG: About to call OpenAI API for email {email_item.get('message_id')}")
+        print(f"DEBUG: get_prompt exists: {callable(get_prompt)}")
+        print(f"DEBUG: get_draft_prompt exists: {callable(get_draft_prompt)}")
+        
+        # Get the prompts before the API call to avoid scoping issues
+        system_prompt = get_prompt()
+        draft_instructions = get_draft_prompt()
+        print(f"DEBUG: Got system_prompt: {system_prompt}")
+        print(f"DEBUG: Got draft_instructions: {draft_instructions}")
+        
         # Process with AI
-        if OPENAI_API_KEY:
-            try:
-                completion = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": f"{get_prompt()}\nDrafting instructions: {get_draft_prompt()}",
-                        },
-                        {
-                            "role": "user",
-                            "content": f"Email content:\n{key_content}\n\nRespond with ONLY a JSON object. No other text or explanation."
-                        },
-                    ],
-                    temperature=0,
-                )
-                
-                response_text = completion.choices[0].message.content.strip()
-                
-                # Clean up the response - remove markdown code blocks if present
-                if response_text.startswith('```json'):
-                    response_text = response_text[7:]  # Remove ```json
-                if response_text.startswith('```'):
-                    response_text = response_text[3:]  # Remove ```
-                if response_text.endswith('```'):
-                    response_text = response_text[:-3]  # Remove trailing ```
-                response_text = response_text.strip()
-                
-                # Parse the JSON response
-                try:
-                    ai_response = json.loads(response_text)
-                except json.JSONDecodeError:
-                    ai_response = {"reviewed": True}  # Default fallback
-                
-                # Extract draft if present
-                draft_text = ai_response.get('draft') or ai_response.get('response')
-                
-                # Update the email in DynamoDB
-                update_expr = "SET processed = :p, action = :a"
-                expr_values = {
-                    ":p": True,
-                    ":a": "drafted" if draft_text else "reviewed (no action needed)"
-                }
-                
-                if draft_text:
-                    update_expr += ", draft = :d, llm_prompt = :lp"
-                    expr_values[":d"] = draft_text
-                    expr_values[":lp"] = key_content  # Store what was sent to LLM
-                
-                email_table.update_item(
-                    Key={'message_id': email_id},
-                    UpdateExpression=update_expr,
-                    ExpressionAttributeValues=expr_values
-                )
-                
-                return jsonify({
-                    'status': 'success',
-                    'new_draft': draft_text,
-                    'llm_prompt': key_content,
-                    'action': "drafted" if draft_text else "reviewed (no action needed)"
-                })
-                
-            except Exception as e:
-                print(f"Error processing email with AI: {e}")
-                return jsonify({'error': f'AI processing failed: {str(e)}'}), 500
-        else:
-            return jsonify({'error': 'OpenAI API key not configured'}), 500
-            
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"{system_prompt}\nDrafting instructions: {draft_instructions}",
+                },
+                {
+                    "role": "user",
+                    "content": f"Email content:\n{key_content}\n\nRespond with ONLY a JSON object. No other text or explanation."
+                },
+            ],
+            temperature=0,
+        )
+        
+        response_text = completion.choices[0].message.content.strip()
+        
+        # Clean up the response - remove markdown code blocks if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]  # Remove ```json
+        if response_text.startswith('```'):
+            response_text = response_text[3:]  # Remove ```
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]  # Remove trailing ```
+        response_text = response_text.strip()
+        
+        # Parse the JSON response
+        try:
+            ai_response = json.loads(response_text)
+        except json.JSONDecodeError:
+            ai_response = {"reviewed": True}  # Default fallback
+        
+        # Extract draft if present
+        draft_text = ai_response.get('draft') or ai_response.get('response')
+        
+        # Update the email in DynamoDB
+        update_expr = "SET #processed = :p, #action = :a"
+        expr_values = {
+            ":p": True,
+            ":a": "drafted" if draft_text else "reviewed (no action needed)"
+        }
+        
+        expr_names = {
+            "#processed": "processed",
+            "#action": "action"
+        }
+        
+        if draft_text:
+            update_expr += ", draft = :d, llm_prompt = :lp"
+            expr_values[":d"] = draft_text
+            expr_values[":lp"] = key_content  # Store what was sent to LLM
+        
+        email_table.update_item(
+            Key={'message_id': email_id},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_values
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'new_draft': draft_text,
+            'llm_prompt': key_content,
+            'action': "drafted" if draft_text else "reviewed (no action needed)"
+        })
+        
     except Exception as e:
         print(f"Error in reprocess_single_email: {e}")
         return jsonify({'error': str(e)}), 500
@@ -992,26 +1104,34 @@ def reprocess_single_email():
 @app.route('/api/process_unprocessed_emails', methods=['POST'])
 def process_unprocessed_emails():
     """Process all unprocessed emails with AI."""
+    print("DEBUG: process_unprocessed_emails called")
     try:
         # Get all unprocessed emails
         response = email_table.scan(
-            FilterExpression="processed = :processed",
+            FilterExpression="#processed = :processed",
+            ExpressionAttributeNames={"#processed": "processed"},
             ExpressionAttributeValues={":processed": False}
         )
         
         unprocessed_emails = response['Items']
+        print(f"DEBUG: Found {len(unprocessed_emails)} unprocessed emails")
         
         if not OPENAI_API_KEY:
             return jsonify({'error': 'OpenAI API key not configured'}), 500
         
+        print("DEBUG: OpenAI API key is configured")
         processed_count = 0
         
-        for email_item in unprocessed_emails:
+        for i, email_item in enumerate(unprocessed_emails):
+            print(f"DEBUG: Processing email {i+1}/{len(unprocessed_emails)}: {email_item.get('message_id')}")
             try:
                 # Extract key content for LLM processing
+                print(f"DEBUG: Extracting key content for email {email_item.get('message_id')}")
                 key_content = extract_key_content_from_email_item(email_item)
+                print(f"DEBUG: Key content extracted: {len(key_content)} characters")
                 
                 # Create a mock parsed email object for compatibility
+                print(f"DEBUG: Creating MockParsedEmail object")
                 class MockParsedEmail:
                     def __init__(self, email_item):
                         self.message_id = email_item.get('message_id')
@@ -1025,13 +1145,23 @@ def process_unprocessed_emails():
                             except:
                                 pass
                 
+                print(f"DEBUG: About to call OpenAI API for email {email_item.get('message_id')}")
+                print(f"DEBUG: get_prompt exists: {callable(get_prompt)}")
+                print(f"DEBUG: get_draft_prompt exists: {callable(get_draft_prompt)}")
+                
+                # Get the prompts before the API call to avoid scoping issues
+                system_prompt = get_prompt()
+                draft_instructions = get_draft_prompt()
+                print(f"DEBUG: Got system_prompt: {system_prompt}")
+                print(f"DEBUG: Got draft_instructions: {draft_instructions}")
+                
                 # Process with AI
                 completion = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
                         {
                             "role": "system",
-                            "content": f"{get_prompt()}\nDrafting instructions: {get_draft_prompt()}",
+                            "content": f"{system_prompt}\nDrafting instructions: {draft_instructions}",
                         },
                         {
                             "role": "user",
@@ -1062,10 +1192,15 @@ def process_unprocessed_emails():
                 draft_text = ai_response.get('draft') or ai_response.get('response')
                 
                 # Update the email in DynamoDB
-                update_expr = "SET processed = :p, action = :a"
+                update_expr = "SET #processed = :p, #action = :a"
                 expr_values = {
                     ":p": True,
                     ":a": "drafted" if draft_text else "reviewed (no action needed)"
+                }
+                
+                expr_names = {
+                    "#processed": "processed",
+                    "#action": "action"
                 }
                 
                 if draft_text:
@@ -1076,6 +1211,7 @@ def process_unprocessed_emails():
                 email_table.update_item(
                     Key={'message_id': email_item['message_id']},
                     UpdateExpression=update_expr,
+                    ExpressionAttributeNames=expr_names,
                     ExpressionAttributeValues=expr_values
                 )
                 
@@ -1083,6 +1219,10 @@ def process_unprocessed_emails():
                 
             except Exception as e:
                 print(f"Error processing email {email_item.get('message_id')}: {e}")
+                print(f"Error type: {type(e)}")
+                print(f"Error details: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 continue
         
         return jsonify({
@@ -1474,6 +1614,15 @@ def signout():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/test_debug')
+def test_debug():
+    """Test endpoint to verify debug output works."""
+    print("DEBUG: test_debug endpoint called")
+    print(f"DEBUG: get_prompt function exists: {callable(get_prompt)}")
+    print(f"DEBUG: get_prompt() returns: {get_prompt()}")
+    return jsonify({'status': 'debug test complete'})
 
 
 if __name__ == '__main__':

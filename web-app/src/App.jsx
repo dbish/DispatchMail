@@ -423,13 +423,6 @@ function App() {
           >
             {isProcessing ? 'Processing...' : 'Process Unprocessed Emails'}
           </button>
-          <button 
-            onClick={manualSync} 
-            disabled={isSyncing}
-            style={{ marginTop: '0.5rem', marginLeft: '0.5rem' }}
-          >
-            {isSyncing ? 'Syncing...' : 'Manual Sync'}
-          </button>
           {syncMessage && (
             <div className="sync-message" style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: syncMessage.includes('Found') ? '#28a745' : '#666' }}>
               {syncMessage}
