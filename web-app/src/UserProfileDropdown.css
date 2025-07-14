@@ -25,7 +25,12 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  object-fit: cover;
+  background-color: rgba(128, 128, 128, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border: 1px solid var(--border-color);
 }
 
 .profile-info {

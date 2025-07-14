@@ -36,7 +36,7 @@ export default function UserProfileDropdown({ userProfile, onClose, onSignOut, o
   return (
     <div className="user-profile-dropdown" ref={dropdownRef}>
       <div className="profile-header">
-        <img className="profile-avatar" src="/vite.svg" alt="Profile" />
+        <div className="profile-avatar">🤖</div>
         <div className="profile-info">
           {isEditingName ? (
             <div className="name-edit">
