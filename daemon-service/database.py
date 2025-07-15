@@ -36,7 +36,8 @@ class DatabaseManager:
                     draft TEXT DEFAULT '',
                     account TEXT,
                     llm_prompt TEXT DEFAULT '',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
@@ -62,6 +63,17 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+            
+            # Migration: Add updated_at column to emails table if it doesn't exist
+            try:
+                cursor.execute('ALTER TABLE emails ADD COLUMN updated_at TIMESTAMP')
+                print("Added updated_at column to emails table")
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" in str(e):
+                    # Column already exists, this is fine
+                    pass
+                else:
+                    print(f"Error adding updated_at column: {e}")
             
             conn.commit()
             conn.close()
@@ -155,8 +167,12 @@ class DatabaseManager:
                 conn = self.get_connection()
                 cursor = conn.cursor()
                 
-                set_clause = ", ".join([f"{k} = ?" for k in update_data.keys()])
-                values = list(update_data.values()) + [message_id]
+                # Automatically set updated_at timestamp
+                update_data_with_timestamp = update_data.copy()
+                update_data_with_timestamp['updated_at'] = datetime.now().isoformat()
+                
+                set_clause = ", ".join([f"{k} = ?" for k in update_data_with_timestamp.keys()])
+                values = list(update_data_with_timestamp.values()) + [message_id]
                 
                 cursor.execute(f'UPDATE emails SET {set_clause} WHERE message_id = ?', values)
                 conn.commit()
@@ -195,16 +211,40 @@ class DatabaseManager:
                 conn = self.get_connection()
                 cursor = conn.cursor()
                 
+                # First, get existing metadata to preserve values not being updated
+                cursor.execute('SELECT * FROM metadata WHERE user = ?', (user,))
+                existing = cursor.fetchone()
+                
+                if existing:
+                    # Merge with existing data, preserving fields not being updated
+                    existing_data = {
+                        'data': existing[1] or '',
+                        'last_processed': existing[2] or '',
+                        'prompt': existing[3] or '',
+                        'rules': existing[4] or ''
+                    }
+                    # Update only the fields provided in the data parameter
+                    existing_data.update(data)
+                    final_data = existing_data
+                else:
+                    # No existing data, use provided data with empty defaults
+                    final_data = {
+                        'data': data.get('data', ''),
+                        'last_processed': data.get('last_processed', ''),
+                        'prompt': data.get('prompt', ''),
+                        'rules': data.get('rules', '')
+                    }
+                
                 cursor.execute('''
                     INSERT OR REPLACE INTO metadata 
                     (user, data, last_processed, prompt, rules, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (
                     user,
-                    data.get('data', ''),
-                    data.get('last_processed', ''),
-                    data.get('prompt', ''),
-                    data.get('rules', ''),
+                    final_data['data'],
+                    final_data['last_processed'],
+                    final_data['prompt'],
+                    final_data['rules'],
                     datetime.now().isoformat()
                 ))
                 

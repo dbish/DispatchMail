@@ -186,14 +186,10 @@ def process_email_with_ai_sync(parsed_email):
         # Extract draft if present
         draft_text = ai_response.get('draft') or ai_response.get('response')
         
-        # Update the email in database with current timestamp
-        from datetime import datetime
-        current_time = datetime.now().isoformat()
-        
+        # Update the email in database
         update_data = {
             'processed': True,
-            'action': "drafted" if draft_text else "reviewed (no action needed)",
-            'updated_at': current_time
+            'action': "drafted" if draft_text else "reviewed (no action needed)"
         }
         
         if draft_text:
@@ -490,9 +486,15 @@ def reset_inbox():
             # Create new metadata entry with empty last_processed
             db.put_metadata(user, {'last_processed': ''})
         
+        # Clear processed message IDs to allow reprocessing of emails
+        try:
+            observer.clear_processed_message_ids()
+        except Exception as e:
+            print(f"Error clearing processed message IDs: {e}")
+        
         return jsonify({
             'success': True,
-            'message': f'Inbox reset successfully. {emails_deleted} emails deleted.',
+            'message': f'Inbox reset successfully. {emails_deleted} emails deleted. Processed message IDs cleared.',
             'emails_deleted': emails_deleted
         })
     except Exception as e:
@@ -703,14 +705,10 @@ def send_email():
         if not email_id:
             return jsonify({'error': 'Email ID required'}), 400
         
-        # Update email status to sent with current timestamp
-        from datetime import datetime
-        current_time = datetime.now().isoformat()
-        
+        # Update email status to sent
         update_data = {
             'action': 'sent',
-            'draft': draft_text,
-            'updated_at': current_time
+            'draft': draft_text
         }
         
         success = db.update_email(email_id, update_data)
