@@ -20,9 +20,8 @@ function App() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showWhitelistModal, setShowWhitelistModal] = useState(false);
-  const [theme, setTheme] = useState(
-    localStorage.getItem('theme') || 'dark'
-  );
+  // Static dark theme - no theme switching
+  const theme = 'dark';
   const [draftPrompts, setDraftPrompts] = useState([
     {
       name: 'default',
@@ -267,11 +266,7 @@ function App() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    document.body.classList.remove('theme-light', 'theme-dark');
-    document.body.classList.add(theme === 'light' ? 'theme-light' : 'theme-dark');
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+  // Static dark theme - no theme switching needed
 
   // Helper function to update emails and counts consistently
   const updateEmailsAndCounts = (emailsData, lastModifiedValue) => {
@@ -290,9 +285,20 @@ function App() {
     });
   };
 
-  const unprocessedEmails = emails.filter((e) => !e.processed);
-  const awaitingHumanEmails = emails.filter((e) => e.processed && e.action === 'drafted');
-  const processedEmails = emails.filter((e) => e.processed && e.action !== 'drafted');
+  // Single inbox with all emails, sorted by priority and date
+  const allEmails = emails.sort((a, b) => {
+    // First priority: unprocessed emails come first
+    const aUnprocessed = !a.processed;
+    const bUnprocessed = !b.processed;
+    
+    if (aUnprocessed && !bUnprocessed) return -1; // a comes first
+    if (!aUnprocessed && bUnprocessed) return 1;  // b comes first
+    
+    // Second priority: within same processed status, sort by date (newest first)
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+    return dateB - dateA; // Reverse chronological order (newest first)
+  });
 
   const saveSystemPrompt = async () => {
     try {
@@ -393,32 +399,42 @@ function App() {
     return null;
   };
 
-  const EmailItem = ({ email, showActions = false, isAwaitingHuman = false, onAwaitingHumanClick, isProcessed = false, onProcessedClick }) => {
+  const EmailItem = ({ email }) => {
     const isProcessingEmail = email.processing === true;
+    const isAwaitingHuman = email.processed && email.action === 'drafted';
+    const isProcessed = email.processed && email.action !== 'drafted';
+    const isUnprocessed = !email.processed;
     
     const handleClick = () => {
-      if (isAwaitingHuman && onAwaitingHumanClick) {
-        onAwaitingHumanClick(email);
-      } else if (isProcessed && onProcessedClick) {
-        onProcessedClick(email);
+      if (isAwaitingHuman) {
+        setSelectedAwaitingHuman(email);
+      } else if (isProcessed) {
+        setSelectedProcessedEmail(email);
       } else if (email.draft && !email.processed) {
         setSelectedDraft(email);
       }
     };
+
+    const getStatusLabel = () => {
+      if (isProcessingEmail) return { text: 'Processing...', type: 'processing' };
+      if (isUnprocessed) return { text: 'Unprocessed', type: 'unprocessed' };
+      if (isAwaitingHuman) return { text: 'Awaiting Review', type: 'awaiting' };
+      if (isProcessed) return { text: getActionTag(email) || 'Processed', type: 'processed' };
+      return { text: 'Unknown', type: 'unknown' };
+    };
+
+    const status = getStatusLabel();
     
     return (
       <div
-        className={`email-item ${email.processed ? 'processed' : 'unprocessed'} ${isProcessingEmail ? 'processing' : ''} ${isAwaitingHuman ? 'awaiting-human' : ''}`}
+        className={`email-item ${status.type} ${isProcessingEmail ? 'processing' : ''}`}
         onClick={handleClick}
       >
         <div className="email-header">
           <div className="subject">{email.subject}</div>
-          {isProcessingEmail && (
-            <div className="processing-indicator">
-              <span className="loader">⏳</span>
-              <span>Processing...</span>
-            </div>
-          )}
+          <div className="status-label">
+            <span className={`status-tag ${status.type}`}>{status.text}</span>
+          </div>
         </div>
         <div className="meta">
           <span className="from">{email.from}</span>
@@ -426,18 +442,9 @@ function App() {
             {new Date(email.date).toLocaleString()}
           </span>
         </div>
-        {showActions && email.processed && (
+        {email.draft && isAwaitingHuman && (
           <div className="email-actions">
-            {getActionTag(email) && (
-              <span className="action-tag">{getActionTag(email)}</span>
-            )}
-          </div>
-        )}
-        {isAwaitingHuman && (
-          <div className="email-actions">
-            {email.draft && (
-              <span className="action-tag awaiting-tag">email drafted</span>
-            )}
+            <span className="action-tag awaiting-tag">Draft Available</span>
           </div>
         )}
       </div>
@@ -494,9 +501,6 @@ function App() {
           )}
           <button onClick={() => setShowDraftModal(true)}>Drafting Settings</button>
           <button onClick={() => setShowWhitelistModal(true)}>Whitelist Settings</button>
-          <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-            {theme === 'light' ? 'Dark' : 'Light'} Theme
-          </button>
         </div>
       </header>
       <div className="main-container">
@@ -518,8 +522,8 @@ function App() {
             style={{ marginTop: '0.5rem', marginLeft: '0.5rem' }}
           >
             {isProcessing ? 'Processing...' : 
-             unprocessedEmails.length > 0 ? 
-               `Process Next ${Math.min(5, unprocessedEmails.length)} Emails` : 
+             allEmails.filter(e => !e.processed).length > 0 ? 
+               `Process Next ${Math.min(5, allEmails.filter(e => !e.processed).length)} Emails` : 
                'Process Unprocessed Emails'}
           </button>
           <h3>Available Tools</h3>
@@ -555,47 +559,15 @@ function App() {
             </div>
           </div>
           
-          {/* Unprocessed Inbox Section */}
+          {/* Single Inbox Section */}
           <div className="inbox-section">
-            <h3>Unprocessed Inbox ({unprocessedEmails.length})</h3>
+            <h3>Inbox ({allEmails.length})</h3>
             <div className="email-list">
-              {unprocessedEmails.map((email) => (
+              {allEmails.map((email) => (
                 <EmailItem key={email.message_id} email={email} />
               ))}
-              {unprocessedEmails.length === 0 && (
-                <div className="empty-state">No unprocessed emails</div>
-              )}
-            </div>
-          </div>
-
-          {/* Awaiting Human Section */}
-          <div className="inbox-section">
-            <h3>Awaiting Human ({awaitingHumanEmails.length})</h3>
-            <div className="email-list">
-              {awaitingHumanEmails.map((email) => (
-                <EmailItem key={email.message_id} email={email} isAwaitingHuman={true} onAwaitingHumanClick={(e) => setSelectedAwaitingHuman(e)} />
-              ))}
-              {awaitingHumanEmails.length === 0 && (
-                <div className="empty-state">No emails awaiting human review</div>
-              )}
-            </div>
-          </div>
-
-          {/* Processed Inbox Section */}
-          <div className="inbox-section">
-            <h3>Processed Inbox ({processedEmails.length})</h3>
-            <div className="email-list">
-              {processedEmails.map((email) => (
-                <EmailItem 
-                  key={email.message_id} 
-                  email={email} 
-                  showActions={true} 
-                  isProcessed={true}
-                  onProcessedClick={(e) => setSelectedProcessedEmail(e)}
-                />
-              ))}
-              {processedEmails.length === 0 && (
-                <div className="empty-state">No processed emails</div>
+              {allEmails.length === 0 && (
+                <div className="empty-state">No emails found</div>
               )}
             </div>
           </div>
@@ -614,17 +586,23 @@ function App() {
         <WhitelistSettingsModal
           isOpen={showWhitelistModal}
           onClose={() => setShowWhitelistModal(false)}
-          onResetSuccess={() => {
-            // Clear lastModified state and counts after successful reset
-            setLastModified('');
-            setLastCounts({
-              unprocessed_count: 0,
-              awaiting_human_count: 0,
-              processed_count: 0
-            });
-            // Force immediate refresh
-            fetchEmails();
-          }}
+                      onResetSuccess={() => {
+              // Clear lastModified state and counts after successful reset
+              setLastModified('');
+              setLastCounts({
+                unprocessed_count: 0,
+                awaiting_human_count: 0,
+                processed_count: 0
+              });
+              // Force immediate refresh
+              const fetchEmails = async () => {
+                const response = await fetch('/api/emails');
+                const data = await response.json();
+                updateEmailsAndCounts(data.emails || [], data.last_modified);
+                setLastUpdated(new Date());
+              };
+              fetchEmails();
+            }}
         />
       )}
       {selectedDraft && (
@@ -685,7 +663,7 @@ function App() {
             updateEmailsAndCounts(data.emails || [], data.last_modified);
             setLastUpdated(new Date());
           }}
-          onRerun={async (emailId) => {
+          onRerun={async () => {
             // Force refresh after rerunning
             setLastModified('');
             const response = await fetch('/api/emails');

@@ -1,187 +1,400 @@
+/* Dark Theme Modal Design System */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
+  padding: 1rem;
 }
 
 .modal {
-  background: #fff;
-  color: #000;
-  padding: 1rem;
-  border-radius: 8px;
-  width: 600px;
-  max-width: 95%;
-}
-
-.awaiting-human-modal {
-  width: 800px;
+  background: #161b22;
+  color: #f0f6fc;
+  border-radius: 16px;
   max-height: 90vh;
-  overflow-y: auto;
-}
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid #30363d;
+  position: relative;
 
-.email-info {
-  background: #f5f5f5;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-}
-
-.email-info .subject {
-  font-weight: bold;
-  margin-bottom: 0.25rem;
-}
-
-.email-info .from {
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.prompt-select {
+  /* New flex layout for sticky footer */
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  flex-direction: column;
+  overflow: hidden; /* Hide overflow from the main modal container */
 }
 
+.modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+/* Modal Content Layout */
 .modal-content {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
+  flex: 1 1 auto; /* Allow content to grow and shrink */
+  overflow-y: auto; /* Make the content area scrollable */
+  padding: 1rem 1.5rem;
+  height: auto; /* Remove fixed height */
 }
 
-.left-col,
+.left-col {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .right-col {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+}
+
+.left-col label,
+.right-col label {
+  font-weight: 600;
+  color: #c9d1d9;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .left-col textarea,
 .right-col textarea {
   width: 100%;
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 1rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
   font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: none;
+  background-color: #21262d;
+  color: #f0f6fc;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.left-col textarea {
+  flex-grow: 1; /* Allow textareas to grow */
+}
+
+.right-col textarea {
+  min-height: 120px; /* Give a reasonable default height */
   resize: vertical;
 }
 
+/* Email Composition Layout */
+.email-display-section {
+  flex: 2; /* Takes more space */
+  display: flex;
+  flex-direction: column;
+}
+
+.draft-compose-section {
+  flex: 3; /* Takes the most space for drafting */
+  display: flex;
+  flex-direction: column;
+}
+
+.email-display-section textarea {
+  min-height: 150px;
+}
+
+.draft-compose-section textarea {
+  min-height: 250px;
+}
+
+.left-col textarea:focus,
+.right-col textarea:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
 .right-col textarea.readonly {
-  background-color: #f8f9fa;
-  color: #666;
+  background-color: #0d1117;
+  color: #6e7681;
+  cursor: not-allowed;
 }
 
-.modal-content label {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  display: block;
-  color: #333;
+/* Prompt Select */
+.prompt-select {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: flex-end;
 }
 
+.prompt-select label {
+  font-weight: 600;
+  color: #c9d1d9;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.prompt-select select {
+  padding: 0.75rem 1rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background-color: #21262d;
+  color: #f0f6fc;
+  font-size: 0.875rem;
+  min-width: 200px;
+  transition: border-color 0.2s ease;
+}
+
+.prompt-select select:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.prompt-select input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background-color: #21262d;
+  color: #f0f6fc;
+  font-size: 0.875rem;
+  flex: 1;
+  transition: border-color 0.2s ease;
+}
+
+.prompt-select input:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.prompt-select button {
+  padding: 0.75rem 1.5rem;
+  background-color: #58a6ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prompt-select button:hover {
+  background-color: #1f6feb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+/* Modal Actions */
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #30363d;
+  flex-shrink: 0; /* Prevent the footer from shrinking */
+  background: #161b22;
 }
 
 .modal-actions button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid;
 }
 
+.modal-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+/* Button Variants */
 .rerun-btn {
-  background: #007bff;
+  background: #58a6ff;
   color: white;
-  border-color: #007bff;
+  border-color: #58a6ff;
 }
 
 .rerun-btn:hover:not(:disabled) {
-  background: #0056b3;
-  border-color: #0056b3;
+  background: #1f6feb;
+  border-color: #1f6feb;
 }
 
 .rerun-btn:disabled {
-  background: #6c757d;
-  border-color: #6c757d;
+  background: #6b7280;
+  border-color: #6b7280;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .delete-btn {
-  background: #dc3545;
+  background: #f85149;
   color: white;
-  border-color: #dc3545;
+  border-color: #f85149;
 }
 
 .delete-btn:hover {
-  background: #c82333;
-  border-color: #c82333;
+  background: #da3633;
+  border-color: #da3633;
 }
 
 .send-btn {
-  background: #28a745;
+  background: #3fb950;
   color: white;
-  border-color: #28a745;
+  border-color: #3fb950;
 }
 
 .send-btn:hover:not(:disabled) {
-  background: #218838;
-  border-color: #218838;
+  background: #2ea043;
+  border-color: #2ea043;
 }
 
 .send-btn:disabled {
-  background: #6c757d;
-  border-color: #6c757d;
+  background: #6b7280;
+  border-color: #6b7280;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .delete-btn:disabled {
-  background: #6c757d;
-  border-color: #6c757d;
+  background: #6b7280;
+  border-color: #6b7280;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
-.modal-actions button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+/* Email Info Card - Now a compact info bar */
+.email-info {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  margin-bottom: 0;
+  border: none;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
 }
 
+.email-info .subject,
+.email-info .from,
+.email-info .action {
+  font-size: 0.8rem;
+  color: #8b949e;
+  margin: 0;
+}
+
+.email-info .subject {
+  font-weight: 600;
+  color: #c9d1d9;
+}
+
+/* Status Tags */
 .awaiting-tag {
-  background-color: #ffc107;
-  color: #212529;
-  border-color: #ffc107;
+  background-color: rgba(210, 153, 34, 0.2);
+  color: #d29922;
+  border-color: rgba(210, 153, 34, 0.3);
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
+/* Special Modal Variants */
+.awaiting-human-modal,
 .processed-email-modal {
-  width: 800px;
+  width: 90vw; /* Occupy 90% of the viewport width */
+  max-width: 1800px; /* Set a max-width for very large screens */
   max-height: 90vh;
   overflow-y: auto;
 }
 
 .processed-email-modal .email-info {
-  background: #f5f5f5;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
+  background: #21262d;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border: 1px solid #30363d;
 }
 
 .processed-email-modal .email-info .action {
-  color: #666;
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
+  color: #8b949e;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
 }
 
 .processed-email-modal .readonly {
-  background-color: #f8f9fa;
-  color: #6c757d;
+  background-color: #0d1117;
+  color: #6e7681;
   cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 1800px) {
+  .modal {
+    width: 95vw;
+  }
+  
+  .modal-content {
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal {
+    padding: 1.5rem;
+    width: 95vw;
+    max-height: 95vh;
+  }
+  
+  .modal-content {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .left-col,
+  .right-col {
+    flex: 1;
+  }
+  
+  .prompt-select {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .prompt-select select,
+  .prompt-select input {
+    min-width: auto;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
 }
