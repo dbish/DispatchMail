@@ -21,7 +21,7 @@ DATABASE_PATH = os.getenv('DATABASE_PATH', os.path.join(PROJECT_ROOT, 'dmail.db'
 
 # Number of days to look back when fetching emails on startup
 # if no previous timestamp is stored.
-LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '5'))
+LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '1'))
 
 # OpenAI API Key
 OPENAI_API_KEY = secrets.OPENAI_API_KEY

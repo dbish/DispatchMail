@@ -111,14 +111,34 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal awaiting-human-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Email Draft Review</h2>
-        <div className="email-info">
-          <div className="subject">Subject: {email.subject}</div>
-          <div className="from">From: {email.from}</div>
+        <div className="modal-header">
+          <h2>Email Draft Review</h2>
+          <div className="email-info">
+            <div className="subject">Subject: {email.subject}</div>
+            <div className="from">From: {email.from}</div>
+          </div>
         </div>
         
         <div className="modal-content">
           <div className="left-col">
+            <div className="email-display-section">
+              <label>Full Email Content</label>
+              <textarea 
+                value={userPrompt} 
+                readOnly 
+                className="readonly"
+              />
+            </div>
+            <div className="draft-compose-section">
+              <label>Generated Draft</label>
+              <textarea
+                value={emailDraft}
+                onChange={(e) => setEmailDraft(e.target.value)}
+                placeholder="Email draft will appear here..."
+              />
+            </div>
+          </div>
+          <div className="right-col">
             <label>System Prompt</label>
             <textarea
               rows={4}
@@ -142,23 +162,6 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
               readOnly
               className="readonly"
               placeholder="The actual content sent to the LLM..."
-            />
-          </div>
-          <div className="right-col">
-            <label>Full Email Content</label>
-            <textarea 
-              rows={6} 
-              value={userPrompt} 
-              readOnly 
-              className="readonly"
-            />
-            
-            <label>Generated Draft</label>
-            <textarea
-              rows={9}
-              value={emailDraft}
-              onChange={(e) => setEmailDraft(e.target.value)}
-              placeholder="Email draft will appear here..."
             />
           </div>
         </div>

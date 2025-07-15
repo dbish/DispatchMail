@@ -89,40 +89,63 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal processed-email-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>{isSentEmail ? 'Sent Email' : 'Draft Email'}</h2>
-        <div className="email-info">
-          <div className="subject">Subject: {email.subject}</div>
-          <div className="from">From: {email.from}</div>
-          <div className="action">Action: {email.action}</div>
+        <div className="modal-header">
+          <h2>{isSentEmail ? 'Sent Email' : 'Draft Email'}</h2>
+          <div className="email-info">
+            <div className="subject">Subject: {email.subject}</div>
+            <div className="from">From: {email.from}</div>
+            <div className="action">Action: {email.action}</div>
+          </div>
         </div>
         
         {isSentEmail ? (
           // Read-only view for sent emails
           <div className="modal-content">
             <div className="left-col">
-              <label>Original Email Content</label>
-              <textarea 
-                rows={10} 
-                value={email.body || 'No content available'} 
-                readOnly 
-                className="readonly"
-              />
+              <div className="email-display-section">
+                <label>Original Email Content</label>
+                <textarea 
+                  value={email.body || 'No content available'} 
+                  readOnly 
+                  className="readonly"
+                />
+              </div>
+              <div className="draft-compose-section">
+                <label>Sent Message</label>
+                <textarea
+                  value={emailDraft}
+                  readOnly
+                  className="readonly"
+                  placeholder="No message content available"
+                />
+              </div>
             </div>
             <div className="right-col">
-              <label>Sent Message</label>
-              <textarea
-                rows={10}
-                value={emailDraft}
-                readOnly
-                className="readonly"
-                placeholder="No message content available"
-              />
+              {/* The right column is intentionally empty for this read-only view */}
             </div>
           </div>
         ) : (
           // Interactive view for non-sent emails
           <div className="modal-content">
             <div className="left-col">
+              <div className="email-display-section">
+                <label>Full Email Content</label>
+                <textarea 
+                  value={userPrompt} 
+                  readOnly 
+                  className="readonly"
+                />
+              </div>
+              <div className="draft-compose-section">
+                <label>Generated Draft</label>
+                <textarea
+                  value={emailDraft}
+                  onChange={(e) => setEmailDraft(e.target.value)}
+                  placeholder="Email draft will appear here..."
+                />
+              </div>
+            </div>
+            <div className="right-col">
               <label>System Prompt</label>
               <textarea
                 rows={4}
@@ -146,23 +169,6 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
                 readOnly
                 className="readonly"
                 placeholder="The actual content sent to the LLM..."
-              />
-            </div>
-            <div className="right-col">
-              <label>Full Email Content</label>
-              <textarea 
-                rows={6} 
-                value={userPrompt} 
-                readOnly 
-                className="readonly"
-              />
-              
-              <label>Generated Draft</label>
-              <textarea
-                rows={9}
-                value={emailDraft}
-                onChange={(e) => setEmailDraft(e.target.value)}
-                placeholder="Email draft will appear here..."
               />
             </div>
           </div>
