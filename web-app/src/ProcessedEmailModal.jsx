@@ -23,16 +23,16 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
       // Set the LLM prompt (what was actually sent to the AI)
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
       
-      // Fetch current system and draft prompts
+      // Fetch current system and draft prompts, but with defaults that encourage drafting
       fetch('/api/prompt')
         .then((res) => res.json())
-        .then((data) => setSystemPrompt(data.prompt || ''))
-        .catch(() => {});
+        .then((data) => setSystemPrompt(data.prompt || 'You are an email assistant. Always draft responses to emails that could benefit from a reply. Return JSON with a draft field containing a helpful response.'))
+        .catch(() => setSystemPrompt('You are an email assistant. Always draft responses to emails that could benefit from a reply. Return JSON with a draft field containing a helpful response.'));
         
       fetch('/api/draft_prompt')
         .then((res) => res.json())
-        .then((data) => setDraftPrompt(data.prompt || ''))
-        .catch(() => {});
+        .then((data) => setDraftPrompt(data.prompt || 'Always create a helpful, professional response unless the email is clearly spam or automated. Focus on being helpful and engaging.'))
+        .catch(() => setDraftPrompt('Always create a helpful, professional response unless the email is clearly spam or automated. Focus on being helpful and engaging.'));
     }
   }, [email, isOpen]);
 
@@ -40,6 +40,10 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    console.log('Generating draft for email:', email.message_id);
+    console.log('System prompt:', systemPrompt);
+    console.log('Draft prompt:', draftPrompt);
+    
     try {
       const response = await fetch('/api/rerun_email', {
         method: 'POST',
@@ -51,12 +55,16 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
         }),
       });
       
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Response data:', data);
         setEmailDraft(data.draft || '');
         setLlmPrompt(data.llm_prompt || 'No LLM prompt available');
       } else {
-        console.error('Failed to generate draft');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to generate draft:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error generating draft:', error);

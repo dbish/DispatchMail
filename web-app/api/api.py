@@ -932,9 +932,115 @@ def reprocess_single_email():
         # Process with AI
         try:
             process_email_with_ai_sync(email)
-            return jsonify({'success': True, 'message': 'Email reprocessed'})
+            
+            # Get the updated email to return the new draft and LLM prompt
+            updated_email = db.get_email(message_id)
+            return jsonify({
+                'success': True, 
+                'message': 'Email reprocessed',
+                'new_draft': updated_email.get('draft'),
+                'llm_prompt': updated_email.get('llm_prompt')
+            })
         except Exception as e:
             return jsonify({'error': f'Processing failed: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/rerun_email', methods=['POST'])
+def rerun_email():
+    """Rerun an email with custom prompts."""
+    try:
+        data = request.get_json()
+        email_id = data.get('email_id')
+        system_prompt = data.get('system_prompt')
+        draft_prompt = data.get('draft_prompt')
+        
+        print(f"DEBUG: rerun_email called with email_id: {email_id}")
+        print(f"DEBUG: system_prompt length: {len(system_prompt) if system_prompt else 'None'}")
+        print(f"DEBUG: draft_prompt length: {len(draft_prompt) if draft_prompt else 'None'}")
+        
+        if not email_id:
+            return jsonify({'error': 'Email ID required'}), 400
+        
+        if not client:
+            return jsonify({'error': 'OpenAI client not available'}), 500
+        
+        # Get email from database
+        email = db.get_email(email_id)
+        print(f"DEBUG: Retrieved email: {email is not None}")
+        if not email:
+            return jsonify({'error': 'Email not found'}), 404
+        
+        # Extract key content for LLM processing
+        key_content = extract_key_content_from_email_item(email)
+        
+        # Use provided prompts or fall back to defaults
+        if not system_prompt:
+            system_prompt = get_prompt()
+        if not draft_prompt:
+            draft_prompt = get_draft_prompt()
+        
+        # Process with AI using custom prompts
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"{system_prompt}\nDrafting instructions: {draft_prompt}",
+                },
+                {
+                    "role": "user",
+                    "content": f"Email content:\n{key_content}\n\nRespond with ONLY a JSON object. No other text or explanation."
+                },
+            ],
+            temperature=0,
+        )
+        
+        response_text = completion.choices[0].message.content.strip()
+        print(f"DEBUG: Raw AI response: {response_text}")
+        
+        # Clean up the response - remove markdown code blocks if present
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]  # Remove ```json
+        if response_text.startswith('```'):
+            response_text = response_text[3:]  # Remove ```
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]  # Remove trailing ```
+        response_text = response_text.strip()
+        
+        print(f"DEBUG: Cleaned AI response: {response_text}")
+        
+        # Parse the JSON response
+        try:
+            ai_response = json.loads(response_text)
+            print(f"DEBUG: Parsed AI response: {ai_response}")
+        except json.JSONDecodeError as e:
+            print(f"DEBUG: JSON decode error: {e}")
+            ai_response = {"reviewed": True}  # Default fallback
+        
+        # Extract draft if present
+        draft_text = ai_response.get('draft') or ai_response.get('response')
+        print(f"DEBUG: Extracted draft text: {draft_text}")
+        
+        # Update the email in database
+        update_data = {
+            'processed': True,
+            'action': "drafted" if draft_text else "reviewed (no action needed)"
+        }
+        
+        if draft_text:
+            update_data['draft'] = draft_text
+            update_data['llm_prompt'] = key_content  # Store what was sent to LLM
+        
+        db.update_email(email_id, update_data)
+        
+        return jsonify({
+            'success': True,
+            'draft': draft_text or '',
+            'llm_prompt': key_content,
+            'action': update_data['action']
+        })
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -207,3 +207,4 @@ marimo/_lsp/
 __marimo__/
 daemon-service/secrets.py
 dmail.db
+daemon-service/emails.db
