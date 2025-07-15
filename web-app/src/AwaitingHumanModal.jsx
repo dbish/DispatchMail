@@ -72,7 +72,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
       const response = await fetch('/api/reprocess_single_email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email_id: email.message_id }),
+        body: JSON.stringify({ message_id: email.message_id }),
       });
       
       if (response.ok) {

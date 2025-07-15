@@ -4,6 +4,7 @@ import DraftingSettingsModal from './DraftingSettingsModal.jsx';
 import WhitelistSettingsModal from './WhitelistSettingsModal.jsx';
 import EmailDraftModal from './EmailDraftModal.jsx';
 import AwaitingHumanModal from './AwaitingHumanModal.jsx';
+import ProcessedEmailModal from './ProcessedEmailModal.jsx';
 import Onboarding from './Onboarding.jsx';
 import UserSelector from './UserSelector.jsx';
 import UserProfileDropdown from './UserProfileDropdown.jsx';
@@ -30,13 +31,19 @@ function App() {
   ]);
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [selectedAwaitingHuman, setSelectedAwaitingHuman] = useState(null);
+  const [selectedProcessedEmail, setSelectedProcessedEmail] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [lastModified, setLastModified] = useState('');
+  const [lastCounts, setLastCounts] = useState({
+    unprocessed_count: 0,
+    awaiting_human_count: 0,
+    processed_count: 0
+  });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingEmails, setProcessingEmails] = useState(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   
   // New state for user selection flow
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -107,6 +114,11 @@ function App() {
         setUserProfile(null);
         setShowUserDropdown(false);
         setEmails([]);
+        setLastCounts({
+          unprocessed_count: 0,
+          awaiting_human_count: 0,
+          processed_count: 0
+        });
         setShowOnboarding(false);
         setUsersLoaded(false); // Reset to refetch users
       } else {
@@ -154,8 +166,8 @@ function App() {
       try {
         const response = await fetch('/api/emails');
         const data = await response.json();
-        setEmails(data.emails || []);
-        setLastModified(data.last_modified || '');
+        const emailsData = data.emails || [];
+        updateEmailsAndCounts(emailsData, data.last_modified);
         setLastUpdated(new Date());
       } catch (err) {
         console.error('Failed to fetch emails', err);
@@ -165,39 +177,78 @@ function App() {
     };
 
     const checkForUpdates = async () => {
+      // Prevent multiple concurrent update checks
+      if (isRefreshing || isCheckingForUpdates) {
+        return;
+      }
+      
+      setIsCheckingForUpdates(true);
+      
       try {
         const response = await fetch('/api/emails/status');
         
-        // If the status endpoint doesn't exist, fall back to full refresh
+        // If the status endpoint doesn't exist, just skip this check
         if (!response.ok) {
-          // console.log('Status endpoint not available, falling back to full refresh');
-          await fetchEmails();
+          console.log('Status endpoint not available, skipping update check');
           return;
         }
         
         const status = await response.json();
         
-        // Only fetch full emails if there are changes and we have a valid lastModified
-        if (status.last_modified && status.last_modified !== lastModified) {
-          // console.log('New emails detected, refreshing...');
+        // Check if there are actual changes in the counts that matter
+        const countsChanged = (
+          status.unprocessed_count !== lastCounts.unprocessed_count ||
+          status.awaiting_human_count !== lastCounts.awaiting_human_count ||
+          status.processed_count !== lastCounts.processed_count
+        );
+        
+        // Add debugging to understand when false positives occur
+        if (countsChanged) {
+          console.log('Count comparison:', {
+            current: {
+              unprocessed: status.unprocessed_count,
+              awaiting: status.awaiting_human_count,
+              processed: status.processed_count
+            },
+            previous: {
+              unprocessed: lastCounts.unprocessed_count,
+              awaiting: lastCounts.awaiting_human_count,
+              processed: lastCounts.processed_count
+            }
+          });
+        }
+        
+        // Only refresh if there are meaningful changes AND we have valid previous counts
+        // (avoid false positives on first load when lastCounts might be zero)
+        const hasValidPreviousCounts = (
+          lastCounts.unprocessed_count + lastCounts.awaiting_human_count + lastCounts.processed_count > 0
+        );
+        
+        if (countsChanged && hasValidPreviousCounts) {
+          console.log('Email counts changed, refreshing...');
+          await fetchEmails();
+        } else if (!lastModified) {
+          // Only refresh on empty lastModified if we don't have valid counts yet
+          console.log('No lastModified, doing initial refresh...');
           await fetchEmails();
         }
       } catch (err) {
-        console.error('Failed to check email status, falling back to full refresh:', err);
-        // Fallback to full refresh if status check fails
-        await fetchEmails();
+        console.error('Failed to check email status:', err);
+        // Don't fallback to full refresh on error - just skip this check
+      } finally {
+        setIsCheckingForUpdates(false);
       }
     };
 
     // Initial fetch
     fetchEmails();
     
-    // Set up smart polling every 5 seconds, but only if we have a current user
-    const intervalId = setInterval(checkForUpdates, 5000);
+    // Set up smart polling every 2 minutes, but only if we have a current user
+    const intervalId = setInterval(checkForUpdates, 120000); // 2 minutes
     
     // Cleanup interval on unmount
     return () => clearInterval(intervalId);
-  }, [currentUser, lastModified]);
+  }, [currentUser]);
 
   useEffect(() => {
     fetch('/api/draft_prompt')
@@ -222,9 +273,26 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Helper function to update emails and counts consistently
+  const updateEmailsAndCounts = (emailsData, lastModifiedValue) => {
+    setEmails(emailsData);
+    setLastModified(lastModifiedValue || '');
+    
+    // Update counts for comparison
+    const unprocessedCount = emailsData.filter(e => !e.processed).length;
+    const awaitingHumanCount = emailsData.filter(e => e.processed && e.action === 'drafted').length;
+    const processedCount = emailsData.filter(e => e.processed && e.action !== 'drafted').length;
+    
+    setLastCounts({
+      unprocessed_count: unprocessedCount,
+      awaiting_human_count: awaitingHumanCount,
+      processed_count: processedCount
+    });
+  };
+
   const unprocessedEmails = emails.filter((e) => !e.processed);
-  const awaitingHumanEmails = emails.filter((e) => e.processed && e.draft && e.action !== 'sent');
-  const processedEmails = emails.filter((e) => e.processed && (!e.draft || e.action === 'sent'));
+  const awaitingHumanEmails = emails.filter((e) => e.processed && e.action === 'drafted');
+  const processedEmails = emails.filter((e) => e.processed && e.action !== 'drafted');
 
   const saveSystemPrompt = async () => {
     try {
@@ -244,10 +312,6 @@ function App() {
   const processUnprocessedEmails = async () => {
     setIsProcessing(true);
     
-    // Mark all unprocessed emails as being processed
-    const emailsToProcess = unprocessedEmails.map(e => e.id);
-    setProcessingEmails(new Set(emailsToProcess));
-    
     try {
       const response = await fetch('/api/process_unprocessed_emails', {
         method: 'POST',
@@ -257,14 +321,13 @@ function App() {
       const data = await response.json();
       
       if (response.ok) {
-        console.log(`Processed ${data.processed_count} emails`);
+        console.log(`Processed ${data.processed_count} emails (batch of ${data.batch_size})`);
         console.log(`Remaining unprocessed: ${data.remaining_unprocessed || 0}`);
         
         // Refresh emails after processing
         const emailResponse = await fetch('/api/emails');
         const emailData = await emailResponse.json();
-        setEmails(emailData.emails || []);
-        setLastModified(emailData.last_modified || '');
+        updateEmailsAndCounts(emailData.emails || [], emailData.last_modified);
         setLastUpdated(new Date());
       } else {
         // Handle API errors
@@ -274,7 +337,6 @@ function App() {
       console.error('Failed to process emails:', error);
     } finally {
       setIsProcessing(false);
-      setProcessingEmails(new Set());
     }
   };
 
@@ -298,8 +360,7 @@ function App() {
           // Refresh emails after sync
           const emailResponse = await fetch('/api/emails');
           const emailData = await emailResponse.json();
-          setEmails(emailData.emails || []);
-          setLastModified(emailData.last_modified || '');
+          updateEmailsAndCounts(emailData.emails || [], emailData.last_modified);
           setLastUpdated(new Date());
         } else {
           setSyncMessage('No new emails found');
@@ -323,16 +384,23 @@ function App() {
   const getActionTag = (email) => {
     if (email.action === 'sent') return 'sent';
     if (email.action === 'archived') return 'archived';
-    if (email.action === 'labeled') return `labeled: ${email.label}`;
+    if (email.action === 'drafted') return 'drafted';
+    if (email.action === 'reviewed (no action needed)') return 'reviewed';
+    if (email.action && email.action.startsWith('labeled')) return email.action;
+    if (email.action && email.action.includes('labeled')) return email.action;
+    // Show any other action that exists
+    if (email.action && email.action.trim()) return email.action;
     return null;
   };
 
-  const EmailItem = ({ email, showActions = false, isAwaitingHuman = false, onAwaitingHumanClick }) => {
-    const isProcessingEmail = processingEmails.has(email.message_id);
+  const EmailItem = ({ email, showActions = false, isAwaitingHuman = false, onAwaitingHumanClick, isProcessed = false, onProcessedClick }) => {
+    const isProcessingEmail = email.processing === true;
     
     const handleClick = () => {
       if (isAwaitingHuman && onAwaitingHumanClick) {
         onAwaitingHumanClick(email);
+      } else if (isProcessed && onProcessedClick) {
+        onProcessedClick(email);
       } else if (email.draft && !email.processed) {
         setSelectedDraft(email);
       }
@@ -362,9 +430,6 @@ function App() {
           <div className="email-actions">
             {getActionTag(email) && (
               <span className="action-tag">{getActionTag(email)}</span>
-            )}
-            {email.draft && !email.action?.includes('drafted') && (
-              <span className="action-tag">drafted email</span>
             )}
           </div>
         )}
@@ -452,13 +517,11 @@ function App() {
             disabled={isProcessing}
             style={{ marginTop: '0.5rem', marginLeft: '0.5rem' }}
           >
-            {isProcessing ? 'Processing...' : 'Process Unprocessed Emails'}
+            {isProcessing ? 'Processing...' : 
+             unprocessedEmails.length > 0 ? 
+               `Process Next ${Math.min(5, unprocessedEmails.length)} Emails` : 
+               'Process Unprocessed Emails'}
           </button>
-          {syncMessage && (
-            <div className="sync-message" style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: syncMessage.includes('Found') ? '#28a745' : '#666' }}>
-              {syncMessage}
-            </div>
-          )}
           <h3>Available Tools</h3>
           <ul className="tools-list">
             <li>labelemail</li>
@@ -523,7 +586,13 @@ function App() {
             <h3>Processed Inbox ({processedEmails.length})</h3>
             <div className="email-list">
               {processedEmails.map((email) => (
-                <EmailItem key={email.message_id} email={email} showActions={true} />
+                <EmailItem 
+                  key={email.message_id} 
+                  email={email} 
+                  showActions={true} 
+                  isProcessed={true}
+                  onProcessedClick={(e) => setSelectedProcessedEmail(e)}
+                />
               ))}
               {processedEmails.length === 0 && (
                 <div className="empty-state">No processed emails</div>
@@ -545,6 +614,17 @@ function App() {
         <WhitelistSettingsModal
           isOpen={showWhitelistModal}
           onClose={() => setShowWhitelistModal(false)}
+          onResetSuccess={() => {
+            // Clear lastModified state and counts after successful reset
+            setLastModified('');
+            setLastCounts({
+              unprocessed_count: 0,
+              awaiting_human_count: 0,
+              processed_count: 0
+            });
+            // Force immediate refresh
+            fetchEmails();
+          }}
         />
       )}
       {selectedDraft && (
@@ -564,8 +644,7 @@ function App() {
             setLastModified('');
             const response = await fetch('/api/emails');
             const data = await response.json();
-            setEmails(data.emails || []);
-            setLastModified(data.last_modified || '');
+            updateEmailsAndCounts(data.emails || [], data.last_modified);
             setLastUpdated(new Date());
           }}
         />
@@ -579,7 +658,7 @@ function App() {
             await fetch('/api/send', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: selectedAwaitingHuman.id, draft: draftText }),
+              body: JSON.stringify({ id: selectedAwaitingHuman.message_id, draft: draftText }),
             });
             setSelectedAwaitingHuman(null);
             
@@ -587,8 +666,7 @@ function App() {
             setLastModified('');
             const response = await fetch('/api/emails');
             const data = await response.json();
-            setEmails(data.emails || []);
-            setLastModified(data.last_modified || '');
+            updateEmailsAndCounts(data.emails || [], data.last_modified);
             setLastUpdated(new Date());
           }}
           onDelete={async (emailId) => {
@@ -604,8 +682,7 @@ function App() {
             setLastModified('');
             const response = await fetch('/api/emails');
             const data = await response.json();
-            setEmails(data.emails || []);
-            setLastModified(data.last_modified || '');
+            updateEmailsAndCounts(data.emails || [], data.last_modified);
             setLastUpdated(new Date());
           }}
           onRerun={async (emailId) => {
@@ -613,8 +690,29 @@ function App() {
             setLastModified('');
             const response = await fetch('/api/emails');
             const data = await response.json();
-            setEmails(data.emails || []);
-            setLastModified(data.last_modified || '');
+            updateEmailsAndCounts(data.emails || [], data.last_modified);
+            setLastUpdated(new Date());
+          }}
+        />
+      )}
+      {selectedProcessedEmail && (
+        <ProcessedEmailModal
+          isOpen={!!selectedProcessedEmail}
+          onClose={() => setSelectedProcessedEmail(null)}
+          email={selectedProcessedEmail}
+          onSend={async (draftText) => {
+            await fetch('/api/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: selectedProcessedEmail.message_id, draft: draftText }),
+            });
+            setSelectedProcessedEmail(null);
+            
+            // Force refresh after sending
+            setLastModified('');
+            const response = await fetch('/api/emails');
+            const data = await response.json();
+            updateEmailsAndCounts(data.emails || [], data.last_modified);
             setLastUpdated(new Date());
           }}
         />

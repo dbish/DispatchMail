@@ -36,6 +36,21 @@ def clear_processed_message_ids():
     processed_message_ids.clear()
     print("Cleared processed message IDs set")
 
+def load_processed_message_ids_from_db():
+    """Load existing processed message IDs from database to avoid reprocessing."""
+    global processed_message_ids
+    try:
+        # Get all emails from database
+        all_emails = db.scan_emails()
+        for email in all_emails:
+            message_id = email.get('message_id')
+            if message_id:
+                processed_message_ids.add(message_id)
+        
+        print(f"Loaded {len(processed_message_ids)} processed message IDs from database")
+    except Exception as e:
+        print(f"Error loading processed message IDs from database: {e}")
+
 
 def get_last_processed_date(user):
     """Retrieve the last processed email timestamp for a user."""
@@ -99,8 +114,15 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
     print(f'user_info: {user_info}')
     print(f'body: {body}')
 
-    # Store into SQLite
+    # Store into SQLite - but only if it doesn't already exist
     try:
+        # Check if email already exists in database
+        if message_id:
+            existing_email = db.get_email(message_id)
+            if existing_email:
+                print(f"Email {message_id} already exists in database, not overwriting")
+                return
+        
         # Convert email date to UTC before storing
         utc_date = None
         if date:
@@ -123,6 +145,7 @@ def processUnread(current_user, to, user_info, body, subject, message_id, date=N
         }
         
         db.put_email(email_data)
+        print(f"Added new email to database: {message_id}")
         if utc_date:
             update_last_processed_date(current_user, utc_date)
     except Exception as e:
@@ -229,63 +252,53 @@ async def imap_loop(host, user, password) -> None:
                                         is_whitelisted = await asyncio.to_thread(filter_utils.should_store, parsed_email, user)
                                         if is_whitelisted:
                                             message_id = parsed_email.message_id
-                                            if message_id and message_id not in processed_message_ids:
-                                                #processed_message_ids.add(message_id)
-                                                
-                                                # Store whitelisted email as already processed
-                                                #email_data = {
-                                                #    'message_id': message_id or '',
-                                                #    'subject': parsed_email.subject or '',
-                                                #    'to': json.dumps(parsed_email.to),
-                                                #    'from': json.dumps(parsed_email.from_),
-                                                #    'body': parsed_email.text_plain[0] if parsed_email.text_plain else '',
-                                                #    'date': email_date.isoformat() if email_date else '',
-                                                #    'processed': True,
-                                                #    'action': 'whitelisted',
-                                                #    'draft': '',
-                                                #    'account': user,
-                                                #}
-                                                #db.put_email(email_data)
-                                            #continue
-
-                                        # Check if we've already processed this message
-                                        #message_id = parsed_email.message_id
-                                        #if message_id in processed_message_ids:
-                                        #    print(f"Skipping already processed message: {message_id}")
-                                        #    continue
-                                        
-                                        # Add to processed set (only if message_id is not None/empty)
-                                        #if message_id:
-                                        #    processed_message_ids.add(message_id)
-                                        #else:
-                                        #    print("Warning: Message has no ID, processing anyway")
-                                        
-                                                print(parsed_email.to)
-                                                print(parsed_email.subject)
-                                                from_email = parsed_email.from_
-                                                if len(parsed_email.reply_to) > 0:
-                                                    from_email = parsed_email.reply_to
-                                                print('from email::::')
-                                                print(from_email)
-                                                print(parsed_email.text_plain)
-                                                print('message id::::')
-                                                print(parsed_email.message_id)
-                                                processUnread(
-                                                    user,
-                                                    parsed_email.to,
-                                                    from_email,
-                                                    parsed_email.text_plain,
-                                                    parsed_email.subject,
-                                                    parsed_email.message_id,
-                                                    parsed_email.date
-                                                )
-                                                # Enable automatic AI processing for new emails
-                                                try:
-                                                    asyncio.create_task(ai_processor.handle_email(user, parsed_email))
-                                                    print(f"Queued AI processing for email: {parsed_email.message_id}")
-                                                except Exception as e:
-                                                    print(f"Error queuing AI processing for email {parsed_email.message_id}: {e}")
-                                                print(f"Total processed messages tracked: {len(processed_message_ids)}")
+                                            
+                                            # Check if we've already processed this message (in-memory check)
+                                            if message_id in processed_message_ids:
+                                                print(f"Skipping already processed message: {message_id}")
+                                                continue
+                                            
+                                            # Check if email already exists in database
+                                            existing_email = db.get_email(message_id)
+                                            if existing_email:
+                                                print(f"Email {message_id} already exists in database, skipping")
+                                                # Add to processed set so we don't check again
+                                                if message_id:
+                                                    processed_message_ids.add(message_id)
+                                                continue
+                                            
+                                            # Add to processed set (only if message_id is not None/empty)
+                                            if message_id:
+                                                processed_message_ids.add(message_id)
+                                            else:
+                                                print("Warning: Message has no ID, processing anyway")
+                                            
+                                            print(parsed_email.to)
+                                            print(parsed_email.subject)
+                                            from_email = parsed_email.from_
+                                            if len(parsed_email.reply_to) > 0:
+                                                from_email = parsed_email.reply_to
+                                            print('from email::::')
+                                            print(from_email)
+                                            print(parsed_email.text_plain)
+                                            print('message id::::')
+                                            print(parsed_email.message_id)
+                                            processUnread(
+                                                user,
+                                                parsed_email.to,
+                                                from_email,
+                                                parsed_email.text_plain,
+                                                parsed_email.subject,
+                                                parsed_email.message_id,
+                                                parsed_email.date
+                                            )
+                                            # Enable automatic AI processing for new emails
+                                            try:
+                                                asyncio.create_task(ai_processor.handle_email(user, parsed_email))
+                                                print(f"Queued AI processing for email: {parsed_email.message_id}")
+                                            except Exception as e:
+                                                print(f"Error queuing AI processing for email {parsed_email.message_id}: {e}")
+                                            print(f"Total processed messages tracked: {len(processed_message_ids)}")
                                     except Exception as e:
                                         print(f'Error processing individual email: {str(e)}')
                                         print(f'Skipping this email and continuing with the next one')
@@ -346,6 +359,9 @@ async def loop_and_retry(host, user, password):
 
 
 async def monitor_accounts():
+    # Load existing processed message IDs from database on startup
+    load_processed_message_ids_from_db()
+    
     active_tasks = {}
     while True:
         accounts = await asyncio.to_thread(fetch_accounts)

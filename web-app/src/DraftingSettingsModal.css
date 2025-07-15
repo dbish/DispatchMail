@@ -160,3 +160,28 @@
   color: #212529;
   border-color: #ffc107;
 }
+
+.processed-email-modal {
+  width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.processed-email-modal .email-info {
+  background: #f5f5f5;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.processed-email-modal .email-info .action {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.processed-email-modal .readonly {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}

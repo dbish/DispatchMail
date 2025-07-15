@@ -176,7 +176,7 @@ async def handle_email(user: str, parsed_email) -> None:
         return
     
     # Extract actions from the response
-    draft_text = response_data.get("draft", "")
+    draft_text = response_data.get("draft", "") or response_data.get("response", "")
     label_name = response_data.get("label", "")
     archive_flag = response_data.get("archive", False)
     

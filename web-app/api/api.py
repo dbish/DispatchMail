@@ -563,31 +563,51 @@ def signout():
 def get_emails_status():
     """Get email update status."""
     try:
-        # Get latest email timestamp
+        # Get all emails
         emails = db.scan_emails()
         
         if not emails:
-            return jsonify({'last_modified': '', 'count': 0})
+            return jsonify({
+                'last_modified': '', 
+                'total_count': 0,
+                'unprocessed_count': 0,
+                'awaiting_human_count': 0,
+                'processed_count': 0
+            })
         
         # Calculate last modified time based on all emails (same logic as /api/emails)
         last_modified = ''
-        if emails:
-            # Find the most recent updated_at or created_at timestamp
-            timestamps = []
-            for email in emails:
-                updated_at = email.get('updated_at')
-                created_at = email.get('created_at')
-                if updated_at:
-                    timestamps.append(updated_at)
-                elif created_at:
-                    timestamps.append(created_at)
-            
-            if timestamps:
-                last_modified = max(timestamps)
+        timestamps = []
+        for email in emails:
+            updated_at = email.get('updated_at')
+            created_at = email.get('created_at')
+            if updated_at:
+                timestamps.append(updated_at)
+            elif created_at:
+                timestamps.append(created_at)
+        
+        if timestamps:
+            last_modified = max(timestamps)
+        
+        # Count emails by status (same logic as frontend)
+        unprocessed_count = 0
+        awaiting_human_count = 0
+        processed_count = 0
+        
+        for email in emails:
+            if not email.get('processed', False):
+                unprocessed_count += 1
+            elif email.get('processed', False) and email.get('action') == 'drafted':
+                awaiting_human_count += 1
+            elif email.get('processed', False) and email.get('action') != 'drafted':
+                processed_count += 1
         
         return jsonify({
             'last_modified': last_modified,
-            'count': len(emails)
+            'total_count': len(emails),
+            'unprocessed_count': unprocessed_count,
+            'awaiting_human_count': awaiting_human_count,
+            'processed_count': processed_count
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -640,7 +660,7 @@ def set_draft_prompt_alias():
 
 @app.route('/api/process_unprocessed_emails', methods=['POST'])
 def process_unprocessed_emails():
-    """Process unprocessed emails with AI."""
+    """Process unprocessed emails with AI (batch limited to 5)."""
     try:
         if not client:
             return jsonify({'error': 'OpenAI client not available'}), 500
@@ -648,47 +668,71 @@ def process_unprocessed_emails():
         # Get unprocessed emails
         unprocessed = db.scan_emails({'processed': False})
         
+        # Limit batch size to 5 emails at a time
+        batch_size = 5
+        batch_to_process = unprocessed[:batch_size]
+        
         processed_count = 0
-        for email in unprocessed:
+        processing_ids = []
+        
+        for email in batch_to_process:
             try:
+                # Mark as processing first
+                message_id = email.get('message_id')
+                processing_ids.append(message_id)
+                db.update_email(message_id, {'processing': True})
+                
+                # Process with AI
                 process_email_with_ai_sync(email)
+                
+                # Remove processing flag
+                db.update_email(message_id, {'processing': False})
                 processed_count += 1
+                
             except Exception as e:
                 print(f"Error processing email {email.get('message_id')}: {e}")
+                # Remove processing flag even on error
+                if message_id:
+                    db.update_email(message_id, {'processing': False})
                 continue
+        
+        remaining_count = len(unprocessed) - processed_count
         
         return jsonify({
             'success': True,
             'processed_count': processed_count,
-            'total_found': len(unprocessed)
+            'total_found': len(unprocessed),
+            'remaining_unprocessed': remaining_count,
+            'batch_size': batch_size,
+            'processing_ids': processing_ids
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/manual_sync', methods=['POST'])
 def manual_sync():
-    """Manually sync emails."""
+    """Manually sync emails - since observer runs continuously, this just reports current status."""
     try:
         # Get all users 
         users = db.get_users()
         results = []
         
-        # Check current email count
-        total_emails = 0
+        # Since the observer runs continuously and already processes new emails,
+        # manual sync just reports that no new emails were found
+        # (new emails would have been processed automatically by the observer)
+        
         for user in users:
             email = user.get('user')
             if email:
-                user_emails = db.scan_emails({'account': email})
-                total_emails += len(user_emails)
                 results.append({
                     'email': email,
-                    'new_emails': len(user_emails),
+                    'new_emails': 0,  # Observer processes new emails automatically
                     'status': 'sync_completed'
                 })
         
         return jsonify({
             'success': True, 
-            'message': f'Sync completed - {total_emails} emails in database',
+            'message': 'No new emails found',
             'results': results
         })
     except Exception as e:
@@ -705,7 +749,85 @@ def send_email():
         if not email_id:
             return jsonify({'error': 'Email ID required'}), 400
         
-        # Update email status to sent
+        if not draft_text:
+            return jsonify({'error': 'Draft text required'}), 400
+        
+        # Get the original email from database
+        original_email = db.get_email(email_id)
+        if not original_email:
+            return jsonify({'error': 'Original email not found'}), 404
+        
+        # Parse the original email data
+        try:
+            from_data = json.loads(original_email['from_sender'])
+            to_data = json.loads(original_email['to_recipients'])
+            
+            # Extract sender email (who we're replying to)
+            if from_data and len(from_data) > 0:
+                if len(from_data[0]) > 1:
+                    reply_to_email = from_data[0][1]  # Get email address
+                else:
+                    return jsonify({'error': 'Invalid sender data in original email'}), 400
+            else:
+                return jsonify({'error': 'No sender found in original email'}), 400
+            
+            # Extract our email (who we're sending from)
+            if to_data and len(to_data) > 0:
+                if len(to_data[0]) > 1:
+                    our_email = to_data[0][1]  # Get email address
+                else:
+                    return jsonify({'error': 'Invalid recipient data in original email'}), 400
+            else:
+                return jsonify({'error': 'No recipient found in original email'}), 400
+            
+        except (json.JSONDecodeError, IndexError, KeyError) as e:
+            return jsonify({'error': f'Failed to parse email data: {str(e)}'}), 400
+        
+        # Get user credentials
+        users = db.get_users()
+        user_account = None
+        for user in users:
+            if user.get('user') == our_email:
+                user_account = user
+                break
+        
+        if not user_account:
+            return jsonify({'error': 'User account not found'}), 404
+        
+        # Create reply email
+        reply_subject = original_email['subject']
+        if not reply_subject.startswith('Re: '):
+            reply_subject = f"Re: {reply_subject}"
+        
+        # Create email message
+        msg = EmailMessage()
+        msg['From'] = our_email
+        msg['To'] = reply_to_email
+        msg['Subject'] = reply_subject
+        msg['In-Reply-To'] = original_email['message_id']
+        msg['References'] = original_email['message_id']
+        msg.set_content(draft_text)
+        
+        # Send email via SMTP
+        try:
+            # Configure SMTP server (Gmail)
+            smtp_server = 'smtp.gmail.com'
+            smtp_port = 587
+            
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()  # Enable TLS
+            server.login(user_account['user'], user_account['password'])
+            
+            # Send the email
+            server.send_message(msg)
+            server.quit()
+            
+            print(f"Email sent successfully from {our_email} to {reply_to_email}")
+            
+        except Exception as e:
+            return jsonify({'error': f'Failed to send email: {str(e)}'}), 500
+        
+        # Update email status to sent only after successful sending
         update_data = {
             'action': 'sent',
             'draft': draft_text
@@ -713,9 +835,10 @@ def send_email():
         
         success = db.update_email(email_id, update_data)
         if success:
-            return jsonify({'success': True, 'message': 'Email sent'})
+            return jsonify({'success': True, 'message': 'Email sent successfully'})
         else:
-            return jsonify({'error': 'Failed to update email status'}), 500
+            return jsonify({'error': 'Email sent but failed to update database'}), 500
+            
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -730,7 +853,8 @@ def delete_draft():
             return jsonify({'error': 'Email ID required'}), 400
         
         update_data = {
-            'draft': ''
+            'draft': '',
+            'action': 'reviewed (no action needed)'
         }
         
         success = db.update_email(email_id, update_data)

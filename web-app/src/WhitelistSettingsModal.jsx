@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './WhitelistSettingsModal.css';
 
-function WhitelistSettingsModal({ isOpen, onClose }) {
+function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
   const [rules, setRules] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -105,6 +105,10 @@ function WhitelistSettingsModal({ isOpen, onClose }) {
       
       if (result.success) {
         setMessage(`Inbox reset successfully! ${result.emails_deleted} emails deleted.`);
+        // Notify parent component that reset was successful
+        if (onResetSuccess) {
+          onResetSuccess();
+        }
         setTimeout(() => {
           setMessage('');
           onClose();

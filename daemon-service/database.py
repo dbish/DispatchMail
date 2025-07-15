@@ -75,6 +75,17 @@ class DatabaseManager:
                 else:
                     print(f"Error adding updated_at column: {e}")
             
+            # Migration: Add processing column to emails table if it doesn't exist
+            try:
+                cursor.execute('ALTER TABLE emails ADD COLUMN processing BOOLEAN DEFAULT FALSE')
+                print("Added processing column to emails table")
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" in str(e):
+                    # Column already exists, this is fine
+                    pass
+                else:
+                    print(f"Error adding processing column: {e}")
+            
             conn.commit()
             conn.close()
     
@@ -99,8 +110,8 @@ class DatabaseManager:
                 
                 cursor.execute('''
                     INSERT OR REPLACE INTO emails 
-                    (message_id, subject, to_recipients, from_sender, body, date, processed, action, draft, account, llm_prompt)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (message_id, subject, to_recipients, from_sender, body, date, processed, action, draft, account, llm_prompt, processing)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     email_data.get('message_id', ''),
                     email_data.get('subject', ''),
@@ -112,7 +123,8 @@ class DatabaseManager:
                     email_data.get('action', ''),
                     email_data.get('draft', ''),
                     email_data.get('account', ''),
-                    email_data.get('llm_prompt', '')
+                    email_data.get('llm_prompt', ''),
+                    email_data.get('processing', False)
                 ))
                 
                 conn.commit()
