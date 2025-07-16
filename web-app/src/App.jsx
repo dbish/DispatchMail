@@ -20,8 +20,6 @@ function App() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showWhitelistModal, setShowWhitelistModal] = useState(false);
-  // Static dark theme - no theme switching
-  const theme = 'dark';
   const [draftPrompts, setDraftPrompts] = useState([
     {
       name: 'default',
@@ -48,6 +46,9 @@ function App() {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [usersLoaded, setUsersLoaded] = useState(false);
+
+  // Tab state for email filtering
+  const [activeTab, setActiveTab] = useState('inbox');
 
   // Fetch available users when there's no current user
   useEffect(() => {
@@ -285,20 +286,44 @@ function App() {
     });
   };
 
-  // Single inbox with all emails, sorted by priority and date
-  const allEmails = emails.sort((a, b) => {
-    // First priority: unprocessed emails come first
-    const aUnprocessed = !a.processed;
-    const bUnprocessed = !b.processed;
-    
-    if (aUnprocessed && !bUnprocessed) return -1; // a comes first
-    if (!aUnprocessed && bUnprocessed) return 1;  // b comes first
-    
-    // Second priority: within same processed status, sort by date (newest first)
-    const dateA = new Date(a.date);
-    const dateB = new Date(b.date);
-    return dateB - dateA; // Reverse chronological order (newest first)
-  });
+  // Filter emails based on active tab
+  const getFilteredEmails = () => {
+    const sortedEmails = emails.sort((a, b) => {
+      // First priority: unprocessed emails come first
+      const aUnprocessed = !a.processed;
+      const bUnprocessed = !b.processed;
+      
+      if (aUnprocessed && !bUnprocessed) return -1; // a comes first
+      if (!aUnprocessed && bUnprocessed) return 1;  // b comes first
+      
+      // Second priority: within same processed status, sort by date (newest first)
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateB - dateA; // Reverse chronological order (newest first)
+    });
+
+    switch (activeTab) {
+      case 'inbox':
+        // Inbox: everything except Promotion or Ignore
+        return sortedEmails.filter(email => {
+          const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
+          return !action.includes('promotion') && !action.includes('ignore');
+        });
+      case 'all':
+        // All Mail: show everything
+        return sortedEmails;
+      case 'meh':
+        // Meh: only Promotion and Ignore
+        return sortedEmails.filter(email => {
+          const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
+          return action.includes('promotion') || action.includes('ignore');
+        });
+      default:
+        return sortedEmails;
+    }
+  };
+
+  const allEmails = getFilteredEmails();
 
   const saveSystemPrompt = async () => {
     try {
@@ -425,28 +450,31 @@ function App() {
 
     const status = getStatusLabel();
     
+    // Get preview of message content
+    const getMessagePreview = () => {
+      if (email.body && typeof email.body === 'string') {
+        const text = email.body.replace(/<[^>]*>/g, '').trim();
+        return text.length > 100 ? text.substring(0, 100) + '...' : text;
+      }
+      return '';
+    };
+    
     return (
       <div
-        className={`email-item ${status.type} ${isProcessingEmail ? 'processing' : ''}`}
+        className={`email-item-compact ${status.type} ${isProcessingEmail ? 'processing' : ''}`}
         onClick={handleClick}
       >
-        <div className="email-header">
-          <div className="subject">{email.subject}</div>
-          <div className="status-label">
-            <span className={`status-tag ${status.type}`}>{status.text}</span>
-          </div>
+        <div className="email-content">
+          <span className="sender-name">{email.from || 'Unknown'}</span>
+          <span className="email-separator">•</span>
+          <span className="email-subject">{email.subject || 'No Subject'}</span>
+          {getMessagePreview() && (
+            <span className="email-preview">{getMessagePreview()}</span>
+          )}
         </div>
-        <div className="meta">
-          <span className="from">{email.from}</span>
-          <span className="timestamp">
-            {new Date(email.date).toLocaleString()}
-          </span>
+        <div className="email-status">
+          <span className={`status-tag-compact ${status.type}`}>{status.text}</span>
         </div>
-        {email.draft && isAwaitingHuman && (
-          <div className="email-actions">
-            <span className="action-tag awaiting-tag">Draft Available</span>
-          </div>
-        )}
       </div>
     );
   };
@@ -504,11 +532,11 @@ function App() {
         </div>
       </header>
       <div className="main-container">
-        <aside className="left-panel">
+        <aside className="left-panel-narrow">
           <h2>Email Reading Agent System Prompt</h2>
           <textarea
             className="system-input"
-            rows={10}
+            rows={8}
             value={systemPrompt}
             onChange={(e) => setSystemPrompt(e.target.value)}
             placeholder="Enter instructions for how the AI should read and respond to emails..."
@@ -521,10 +549,7 @@ function App() {
             disabled={isProcessing}
             style={{ marginTop: '0.5rem', marginLeft: '0.5rem' }}
           >
-            {isProcessing ? 'Processing...' : 
-             allEmails.filter(e => !e.processed).length > 0 ? 
-               `Process Next ${Math.min(5, allEmails.filter(e => !e.processed).length)} Emails` : 
-               'Process Unprocessed Emails'}
+            {isProcessing ? 'Processing...' : 'Process Emails'}
           </button>
           <h3>Available Tools</h3>
           <ul className="tools-list">
@@ -535,7 +560,30 @@ function App() {
         </aside>
         <section className="right-panel">
           <div className="inbox-header">
-            <h2>Email Processing Dashboard</h2>
+            <div className="inbox-actions">
+              <button className="action-icon" title="Select All">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                </svg>
+              </button>
+              <button className="action-icon" title="Filter">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
+                </svg>
+              </button>
+              <button className="action-icon" title="Sort">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="6,9 12,15 18,9"/>
+                </svg>
+              </button>
+              <button className="action-icon" title="More Actions">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="1"/>
+                  <circle cx="19" cy="12" r="1"/>
+                  <circle cx="5" cy="12" r="1"/>
+                </svg>
+              </button>
+            </div>
             <div className="inbox-status">
               {isRefreshing && <span className="refreshing">🔄 Refreshing...</span>}
               {isSyncing && <span className="refreshing">📬 Syncing...</span>}
@@ -559,9 +607,36 @@ function App() {
             </div>
           </div>
           
-          {/* Single Inbox Section */}
+          {/* Email Tabs */}
+          <div className="email-tabs">
+            <button 
+              className={`tab-button ${activeTab === 'inbox' ? 'active' : ''}`}
+              onClick={() => setActiveTab('inbox')}
+            >
+              Inbox ({emails.filter(email => {
+                const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
+                return !action.includes('promotion') && !action.includes('ignore');
+              }).length})
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveTab('all')}
+            >
+              All Mail ({emails.length})
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'meh' ? 'active' : ''}`}
+              onClick={() => setActiveTab('meh')}
+            >
+              Meh ({emails.filter(email => {
+                const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
+                return action.includes('promotion') || action.includes('ignore');
+              }).length})
+            </button>
+          </div>
+          
+          {/* Email List */}
           <div className="inbox-section">
-            <h3>Inbox ({allEmails.length})</h3>
             <div className="email-list">
               {allEmails.map((email) => (
                 <EmailItem key={email.message_id} email={email} />
