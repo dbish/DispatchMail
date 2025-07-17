@@ -88,7 +88,10 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal processed-email-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal sidepanel processed-email-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>{isSentEmail ? 'Sent Email' : 'Draft Email'}</h2>
           <div className="email-info">

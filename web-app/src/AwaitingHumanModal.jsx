@@ -110,7 +110,10 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal awaiting-human-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal sidepanel awaiting-human-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>Email Draft Review</h2>
           <div className="email-info">
