@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import './DraftingSettingsModal.css';
 
 export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onDelete, onRerun }) {
   const [draftPrompt, setDraftPrompt] = useState('');
@@ -98,141 +97,94 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal awaiting-human-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Minimal Header */}
-        <div className="modal-header">
-          <div className="email-subject">
-            <span className="subject-label">Re:</span>
-            <span className="subject-text">{email.subject}</span>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-2"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-800 text-gray-200 rounded-lg w-full max-w-5xl h-full max-h-[95vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center px-4 py-2 border-b border-gray-700">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">Re:</span>
+            <span className="text-sm font-semibold">{email.subject}</span>
           </div>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/>
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-200">
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 11-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z" />
             </svg>
           </button>
         </div>
-        
-        {/* Main Content */}
-        <div className="modal-content">
-          {/* Main Email Area */}
-          <div className="email-main-area">
-            {/* Original Email Thread */}
-            <div className="email-thread">
-              <div className="email-message original">
-                <div className="message-header">
-                  <div className="sender-info">
-                    <span className="sender">{email.from}</span>
-                    <span className="timestamp">{new Date(email.date || new Date()).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="message-body">
-                  {formatEmailBody(email.body)}
-                </div>
-              </div>
-            </div>
 
-            {/* Draft Compose Area */}
-            <div className="draft-compose-area">
-              <div className="compose-header">
-                <span className="compose-label">Generated Response</span>
-                <div className="compose-actions">
-                  <button 
-                    className="settings-toggle-btn" 
-                    onClick={toggleSettingsPanel}
-                    aria-label={isSettingsPanelExpanded ? "Hide Settings" : "Show Settings"}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M8 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM8 1a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 8 1Zm0 12a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 13Zm5.657-10.243a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0Zm-9.9 9.9a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0ZM15 8a.75.75 0 0 1-.75.75h-.75a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 15 8ZM3 8a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 3 8Zm10.243 5.657a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Zm-9.9-9.9a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Z"/>
-                    </svg>
-                    Settings
-                  </button>
-                </div>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div>
+              <div className="mb-2 text-sm text-gray-400">
+                <span className="font-semibold">{email.from}</span> · {new Date(email.date || new Date()).toLocaleString()}
               </div>
-              
-              <div className="compose-content">
+              <div className="whitespace-pre-wrap">{formatEmailBody(email.body)}</div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-700 p-4 bg-gray-900 space-y-2 overflow-y-auto">
+            <textarea
+              className="w-full h-32 p-2 rounded bg-gray-700 text-sm text-gray-200"
+              value={emailDraft}
+              onChange={(e) => setEmailDraft(e.target.value)}
+              placeholder="Generated email draft will appear here..."
+            />
+
+            {isSettingsPanelExpanded && (
+              <div className="space-y-2">
                 <textarea
-                  className="draft-textarea"
-                  value={emailDraft}
-                  onChange={(e) => setEmailDraft(e.target.value)}
-                  placeholder="Generated email draft will appear here..."
+                  className="w-full p-2 rounded bg-gray-700 text-sm"
+                  value={draftPrompt}
+                  onChange={(e) => setDraftPrompt(e.target.value)}
+                  placeholder="Customize how the AI should write responses..."
+                  rows={4}
+                />
+                <textarea
+                  className="w-full p-2 rounded bg-gray-700 text-sm text-gray-400"
+                  value={llmPrompt}
+                  readOnly
+                  placeholder="The actual content sent to the LLM..."
+                  rows={6}
                 />
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Collapsible Settings Panel */}
-          <div className={`settings-panel ${isSettingsPanelExpanded ? 'expanded' : 'collapsed'}`}>
-            <div className="settings-panel-content">
-              <div className="settings-section">
-                <div className="settings-header">
-                  <h3>AI Settings</h3>
-                  <button 
-                    className="panel-collapse-btn"
-                    onClick={toggleSettingsPanel}
-                    aria-label="Collapse settings panel"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/>
-                    </svg>
-                  </button>
-                </div>
-                
-                <div className="settings-field">
-                  <label>Drafting Instructions</label>
-                  <textarea
-                    className="settings-textarea"
-                    value={draftPrompt}
-                    onChange={(e) => setDraftPrompt(e.target.value)}
-                    placeholder="Customize how the AI should write responses..."
-                    rows={4}
-                  />
-                </div>
-                
-                <div className="settings-field">
-                  <label>Actual LLM Prompt (Debug)</label>
-                  <textarea
-                    className="settings-textarea readonly"
-                    value={llmPrompt}
-                    readOnly
-                    placeholder="The actual content sent to the LLM..."
-                    rows={6}
-                  />
-                </div>
+            <div className="flex justify-between items-center pt-2">
+              <div className="flex gap-2">
+                <button
+                  className="bg-gray-700 hover:bg-gray-600 text-sm px-3 py-1 rounded"
+                  onClick={handleRerun}
+                  disabled={isRerunning || isSending}
+                >
+                  {isRerunning ? 'Regenerating...' : 'Regenerate'}
+                </button>
+                <button
+                  className="bg-red-600 hover:bg-red-700 text-sm px-3 py-1 rounded"
+                  onClick={handleDelete}
+                  disabled={isSending}
+                >
+                  Delete Draft
+                </button>
+                <button
+                  className="bg-gray-700 hover:bg-gray-600 text-sm px-3 py-1 rounded"
+                  onClick={toggleSettingsPanel}
+                >
+                  {isSettingsPanelExpanded ? 'Hide Settings' : 'Show Settings'}
+                </button>
               </div>
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded disabled:opacity-50"
+                onClick={handleSend}
+                disabled={isSending || !emailDraft.trim()}
+              >
+                {isSending ? 'Sending...' : 'Send Email'}
+              </button>
             </div>
-          </div>
-        </div>
-
-        {/* Sticky Action Bar */}
-        <div className="modal-footer">
-          <div className="compose-footer-left">
-            <button 
-              className="quick-action-btn"
-              onClick={handleRerun}
-              disabled={isRerunning || isSending}
-            >
-              {isRerunning ? 'Regenerating...' : 'Regenerate'}
-            </button>
-            <button 
-              className="quick-action-btn delete-action"
-              onClick={handleDelete}
-              disabled={isSending}
-            >
-              Delete Draft
-            </button>
-          </div>
-          <div className="compose-footer-right">
-            <button 
-              className="send-btn" 
-              onClick={handleSend} 
-              disabled={isSending || !emailDraft.trim()}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M1.724 1.053a.5.5 0 0 1 .6-.08l13 6.5a.5.5 0 0 1 0 .894l-13 6.5a.5.5 0 0 1-.724-.447L2.382 8 1.6 1.5a.5.5 0 0 1 .124-.447Z"/>
-              </svg>
-              {isSending ? 'Sending...' : 'Send Email'}
-            </button>
           </div>
         </div>
       </div>

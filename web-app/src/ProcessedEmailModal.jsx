@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import './DraftingSettingsModal.css';
 
 export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) {
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -87,113 +86,93 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
   const isSentEmail = email.action === 'sent';
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal processed-email-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{isSentEmail ? 'Sent Email' : 'Draft Email'}</h2>
-          <div className="email-info">
-            <div className="subject">Subject: {email.subject}</div>
-            <div className="from">From: {email.from}</div>
-            <div className="action">Action: {email.action}</div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-2"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-800 text-gray-200 rounded-lg w-full max-w-5xl h-full max-h-[95vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center px-4 py-2 border-b border-gray-700">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">{isSentEmail ? 'Sent:' : 'Draft:'}</span>
+            <span className="text-sm font-semibold">{email.subject}</span>
           </div>
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-200">
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 11-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z" />
+            </svg>
+          </button>
         </div>
-        
-        {isSentEmail ? (
-          // Read-only view for sent emails
-          <div className="modal-content">
-            <div className="left-col">
-              <div className="email-display-section">
-                <label>Original Email Content</label>
-                <textarea 
-                  value={email.body || 'No content available'} 
-                  readOnly 
-                  className="readonly"
-                />
+
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div>
+              <div className="mb-2 text-sm text-gray-400">
+                <span className="font-semibold">{email.from}</span> · {new Date(email.date || new Date()).toLocaleString()}
               </div>
-              <div className="draft-compose-section">
-                <label>Sent Message</label>
-                <textarea
-                  value={emailDraft}
-                  readOnly
-                  className="readonly"
-                  placeholder="No message content available"
-                />
-              </div>
-            </div>
-            <div className="right-col">
-              {/* The right column is intentionally empty for this read-only view */}
+              <div className="whitespace-pre-wrap">{userPrompt}</div>
             </div>
           </div>
-        ) : (
-          // Interactive view for non-sent emails
-          <div className="modal-content">
-            <div className="left-col">
-              <div className="email-display-section">
-                <label>Full Email Content</label>
-                <textarea 
-                  value={userPrompt} 
-                  readOnly 
-                  className="readonly"
-                />
-              </div>
-              <div className="draft-compose-section">
-                <label>Generated Draft</label>
+
+          <div className="border-t border-gray-700 p-4 bg-gray-900 space-y-2 overflow-y-auto">
+            {isSentEmail ? (
+              <textarea
+                className="w-full h-32 p-2 rounded bg-gray-700 text-sm text-gray-300"
+                value={emailDraft}
+                readOnly
+              />
+            ) : (
+              <>
                 <textarea
+                  className="w-full h-32 p-2 rounded bg-gray-700 text-sm text-gray-200"
                   value={emailDraft}
                   onChange={(e) => setEmailDraft(e.target.value)}
                   placeholder="Email draft will appear here..."
                 />
-              </div>
-            </div>
-            <div className="right-col">
-              <label>System Prompt</label>
-              <textarea
-                rows={4}
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder="Email reading system prompt..."
-              />
-              
-              <label>Drafting Instructions</label>
-              <textarea
-                rows={3}
-                value={draftPrompt}
-                onChange={(e) => setDraftPrompt(e.target.value)}
-                placeholder="Drafting prompt instructions..."
-              />
-              
-              <label>Actual LLM Prompt (Debug)</label>
-              <textarea
-                rows={4}
-                value={llmPrompt}
-                readOnly
-                className="readonly"
-                placeholder="The actual content sent to the LLM..."
-              />
-            </div>
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <textarea
+                    className="w-full p-2 rounded bg-gray-700 text-sm"
+                    rows={3}
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder="Email reading system prompt..."
+                  />
+                  <textarea
+                    className="w-full p-2 rounded bg-gray-700 text-sm"
+                    rows={3}
+                    value={draftPrompt}
+                    onChange={(e) => setDraftPrompt(e.target.value)}
+                    placeholder="Drafting prompt instructions..."
+                  />
+                  <textarea
+                    className="w-full p-2 rounded bg-gray-700 text-sm text-gray-400"
+                    rows={3}
+                    value={llmPrompt}
+                    readOnly
+                    placeholder="The actual content sent to the LLM..."
+                  />
+                </div>
+                <div className="mt-2 flex justify-end gap-2">
+                  <button
+                    className="bg-gray-700 hover:bg-gray-600 text-sm px-4 py-2 rounded"
+                    onClick={handleGenerate}
+                    disabled={isGenerating || isSending}
+                  >
+                    {isGenerating ? 'Generating...' : 'Generate Draft'}
+                  </button>
+                  <button
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded disabled:opacity-50"
+                    onClick={handleSend}
+                    disabled={isSending || !emailDraft.trim()}
+                  >
+                    {isSending ? 'Sending...' : 'Send Email'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-        )}
-        
-        <div className="modal-actions">
-          {!isSentEmail && (
-            <>
-              <button 
-                onClick={handleGenerate} 
-                disabled={isGenerating || isSending}
-                className="rerun-btn"
-              >
-                {isGenerating ? 'Generating...' : 'Generate Draft'}
-              </button>
-              <button 
-                onClick={handleSend}
-                disabled={isSending || !emailDraft.trim()}
-                className="send-btn"
-              >
-                {isSending ? 'Sending...' : 'Send Email'}
-              </button>
-            </>
-          )}
-          <button onClick={onClose} disabled={isSending || isGenerating}>Close</button>
         </div>
       </div>
     </div>
