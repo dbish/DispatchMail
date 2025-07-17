@@ -2,30 +2,21 @@ import { useState, useEffect } from 'react';
 import './DraftingSettingsModal.css';
 
 export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onDelete, onRerun }) {
-  const [systemPrompt, setSystemPrompt] = useState('');
   const [draftPrompt, setDraftPrompt] = useState('');
-  const [userPrompt, setUserPrompt] = useState('');
   const [llmPrompt, setLlmPrompt] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [isRerunning, setIsRerunning] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSettingsPanelExpanded, setIsSettingsPanelExpanded] = useState(false);
 
   useEffect(() => {
     if (email && isOpen) {
-      // Set the user prompt (email content)
-      const emailContent = `Subject: ${email.subject}\nFrom: ${email.from}\n\n${email.body}`;
-      setUserPrompt(emailContent);
       setEmailDraft(email.draft || '');
       
       // Set the LLM prompt (what was actually sent to the AI)
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
       
-      // Fetch current system and draft prompts
-      fetch('/api/prompt')
-        .then((res) => res.json())
-        .then((data) => setSystemPrompt(data.prompt || ''))
-        .catch(() => {});
-        
+      // Fetch current draft prompt
       fetch('/api/draft_prompt')
         .then((res) => res.json())
         .then((data) => setDraftPrompt(data.prompt || ''))
@@ -38,19 +29,8 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
   const handleRerun = async () => {
     setIsRerunning(true);
     try {
-      // Update prompts if they were changed
+      // Update draft prompt if it was changed
       const requests = [];
-      
-      // Only update prompt if it's not empty
-      if (systemPrompt && systemPrompt.trim()) {
-        requests.push(
-          fetch('/api/prompt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: systemPrompt }),
-          })
-        );
-      }
       
       // Only update draft prompt if it's not empty
       if (draftPrompt && draftPrompt.trim()) {
@@ -108,87 +88,152 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
     onDelete(email.message_id);
   };
 
+  const toggleSettingsPanel = () => {
+    setIsSettingsPanelExpanded(!isSettingsPanelExpanded);
+  };
+
+  const formatEmailBody = (body) => {
+    if (!body) return '';
+    return body.replace(/<[^>]*>/g, '').trim();
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal awaiting-human-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Minimal Header */}
         <div className="modal-header">
-          <h2>Email Draft Review</h2>
-          <div className="email-info">
-            <div className="subject">Subject: {email.subject}</div>
-            <div className="from">From: {email.from}</div>
+          <div className="email-subject">
+            <span className="subject-label">Re:</span>
+            <span className="subject-text">{email.subject}</span>
           </div>
+          <button className="close-btn" onClick={onClose} aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/>
+            </svg>
+          </button>
         </div>
         
+        {/* Main Content */}
         <div className="modal-content">
-          <div className="left-col">
-            <div className="email-display-section">
-              <label>Full Email Content</label>
-              <textarea 
-                value={userPrompt} 
-                readOnly 
-                className="readonly"
-              />
+          {/* Main Email Area */}
+          <div className="email-main-area">
+            {/* Original Email Thread */}
+            <div className="email-thread">
+              <div className="email-message original">
+                <div className="message-header">
+                  <div className="sender-info">
+                    <span className="sender">{email.from}</span>
+                    <span className="timestamp">{new Date(email.date || new Date()).toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="message-body">
+                  {formatEmailBody(email.body)}
+                </div>
+              </div>
             </div>
-            <div className="draft-compose-section">
-              <label>Generated Draft</label>
-              <textarea
-                value={emailDraft}
-                onChange={(e) => setEmailDraft(e.target.value)}
-                placeholder="Email draft will appear here..."
-              />
+
+            {/* Draft Compose Area */}
+            <div className="draft-compose-area">
+              <div className="compose-header">
+                <span className="compose-label">Generated Response</span>
+                <div className="compose-actions">
+                  <button 
+                    className="settings-toggle-btn" 
+                    onClick={toggleSettingsPanel}
+                    aria-label={isSettingsPanelExpanded ? "Hide Settings" : "Show Settings"}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM8 1a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 8 1Zm0 12a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 13Zm5.657-10.243a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0Zm-9.9 9.9a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0ZM15 8a.75.75 0 0 1-.75.75h-.75a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 15 8ZM3 8a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 3 8Zm10.243 5.657a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Zm-9.9-9.9a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Z"/>
+                    </svg>
+                    Settings
+                  </button>
+                </div>
+              </div>
+              
+              <div className="compose-content">
+                <textarea
+                  className="draft-textarea"
+                  value={emailDraft}
+                  onChange={(e) => setEmailDraft(e.target.value)}
+                  placeholder="Generated email draft will appear here..."
+                />
+              </div>
             </div>
           </div>
-          <div className="right-col">
-            <label>System Prompt</label>
-            <textarea
-              rows={4}
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Email reading system prompt..."
-            />
-            
-            <label>Drafting Instructions</label>
-            <textarea
-              rows={3}
-              value={draftPrompt}
-              onChange={(e) => setDraftPrompt(e.target.value)}
-              placeholder="Drafting prompt instructions..."
-            />
-            
-            <label>Actual LLM Prompt (Debug)</label>
-            <textarea
-              rows={4}
-              value={llmPrompt}
-              readOnly
-              className="readonly"
-              placeholder="The actual content sent to the LLM..."
-            />
+
+          {/* Collapsible Settings Panel */}
+          <div className={`settings-panel ${isSettingsPanelExpanded ? 'expanded' : 'collapsed'}`}>
+            <div className="settings-panel-content">
+              <div className="settings-section">
+                <div className="settings-header">
+                  <h3>AI Settings</h3>
+                  <button 
+                    className="panel-collapse-btn"
+                    onClick={toggleSettingsPanel}
+                    aria-label="Collapse settings panel"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/>
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="settings-field">
+                  <label>Drafting Instructions</label>
+                  <textarea
+                    className="settings-textarea"
+                    value={draftPrompt}
+                    onChange={(e) => setDraftPrompt(e.target.value)}
+                    placeholder="Customize how the AI should write responses..."
+                    rows={4}
+                  />
+                </div>
+                
+                <div className="settings-field">
+                  <label>Actual LLM Prompt (Debug)</label>
+                  <textarea
+                    className="settings-textarea readonly"
+                    value={llmPrompt}
+                    readOnly
+                    placeholder="The actual content sent to the LLM..."
+                    rows={6}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        
-        <div className="modal-actions">
-          <button 
-            onClick={handleRerun} 
-            disabled={isRerunning || isSending}
-            className="rerun-btn"
-          >
-            {isRerunning ? 'Rerunning...' : 'Rerun'}
-          </button>
-          <button 
-            onClick={handleDelete}
-            disabled={isSending}
-            className="delete-btn"
-          >
-            Delete Draft
-          </button>
-          <button 
-            onClick={handleSend}
-            disabled={isSending}
-            className="send-btn"
-          >
-            {isSending ? 'Sending...' : 'Send Email'}
-          </button>
-          <button onClick={onClose} disabled={isSending}>Close</button>
+
+        {/* Sticky Action Bar */}
+        <div className="modal-footer">
+          <div className="compose-footer-left">
+            <button 
+              className="quick-action-btn"
+              onClick={handleRerun}
+              disabled={isRerunning || isSending}
+            >
+              {isRerunning ? 'Regenerating...' : 'Regenerate'}
+            </button>
+            <button 
+              className="quick-action-btn delete-action"
+              onClick={handleDelete}
+              disabled={isSending}
+            >
+              Delete Draft
+            </button>
+          </div>
+          <div className="compose-footer-right">
+            <button 
+              className="send-btn" 
+              onClick={handleSend} 
+              disabled={isSending || !emailDraft.trim()}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1.724 1.053a.5.5 0 0 1 .6-.08l13 6.5a.5.5 0 0 1 0 .894l-13 6.5a.5.5 0 0 1-.724-.447L2.382 8 1.6 1.5a.5.5 0 0 1 .124-.447Z"/>
+              </svg>
+              {isSending ? 'Sending...' : 'Send Email'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
