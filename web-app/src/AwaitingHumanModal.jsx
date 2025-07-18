@@ -11,7 +11,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
 
   useEffect(() => {
     if (email && isOpen) {
-      setEmailDraft(email.draft || '');
+      setEmailDraft(email.drafted_response || '');
       
       // Set the LLM prompt (what was actually sent to the AI)
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
