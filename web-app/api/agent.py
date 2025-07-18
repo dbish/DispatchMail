@@ -1,5 +1,8 @@
 from openai import OpenAI
-OPENAI_API_KEY = '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'
+import config_reader
+
+OPENAI_API_KEY = config_reader.OPENAI_API_KEY
+
 import asyncio
 import json
 from string import Template
