@@ -42,12 +42,13 @@ async def retrieve_emails(query, user, password):
                         
                         # Parse the email
                         parsed_email = mailparser.parse_from_bytes(email_data)
-                        
                         # Create Email object
                         email_obj = Email(
                             id=parsed_email.id or email_id,
                             subject=parsed_email.subject or '',
                             body=parsed_email.text_plain[0] if parsed_email.text_plain else '',
+                            full_body=parsed_email.body,
+                            html=parsed_email.text_html,
                             from_=parsed_email.from_,
                             to=parsed_email.to,
                             date=parsed_email.date

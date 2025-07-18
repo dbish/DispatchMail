@@ -78,6 +78,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
     setIsSending(true);
     try {
       await onSend(emailDraft);
+
     } catch (error) {
       console.error('Error sending email:', error);
       setIsSending(false); // Only reset on error, success will close modal
@@ -127,8 +128,9 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
                   </div>
                 </div>
                 <div className="message-body">
-                  {formatEmailBody(email.body)}
+                  <div dangerouslySetInnerHTML={{ __html: email.html }} />
                 </div>
+
               </div>
             </div>
 

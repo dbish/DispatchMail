@@ -6,10 +6,12 @@ import json
 import uuid
 
 class Email:
-    def __init__(self, id, subject, body, from_, to, date):
+    def __init__(self, id, subject, body, full_body, html, from_, to, date):
         self.id = id
         self.subject = subject
         self.body = body
+        self.full_body = full_body
+        self.html = html
         self.from_ = from_
         self.to = to
         self.date = date
@@ -35,6 +37,7 @@ class Email:
         Subject: {self.subject}
         Date: {self.date}
         Body: {self.body}
+        HTML: {self.html}
         Processed: {self.processed}
         State: {self.state}
         Drafted Response: {self.drafted_response}
@@ -49,6 +52,8 @@ class Email:
             "id": self.id,
             "subject": self.subject,
             "body": self.body,
+            "html": self.html,
+            "full_body": self.full_body,
             "from": self.from_,
             "to": self.to,
             "date": self.date,
