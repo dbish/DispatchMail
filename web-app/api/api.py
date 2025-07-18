@@ -90,9 +90,11 @@ def get_user_profile():
         for u in users:
             if u.get('user') == email:
                 user = u
+                print(f"User found -- breaking: {user}")
                 break
-        
+
         if not user:
+            print(f"User not found")
             return jsonify({'error': 'User not found'}), 404
 
         # Get user metadata
