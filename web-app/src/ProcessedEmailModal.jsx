@@ -4,35 +4,26 @@ import './DraftingSettingsModal.css';
 export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [draftPrompt, setDraftPrompt] = useState('');
-  const [userPrompt, setUserPrompt] = useState('');
   const [llmPrompt, setLlmPrompt] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSettingsPanelExpanded, setIsSettingsPanelExpanded] = useState(false);
 
   useEffect(() => {
     if (email && isOpen) {
-      // Set the user prompt (email content)
-      const emailContent = `Subject: ${email.subject}\nFrom: ${email.from}\n\n${email.body}`;
-      setUserPrompt(emailContent);
-      
-      // If email was sent, show the draft that was sent
-      // If email was not sent (like "reviewed (no action needed)"), start with empty or existing draft
       setEmailDraft(email.drafted_response || '');
-      
-      // Set the LLM prompt (what was actually sent to the AI)
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
       
-      // Fetch current system and draft prompts, but with defaults that encourage drafting
       fetch('/api/prompt')
         .then((res) => res.json())
-        .then((data) => setSystemPrompt(data.prompt || 'You are an email assistant. Always draft responses to emails that could benefit from a reply. Return JSON with a draft field containing a helpful response.'))
-        .catch(() => setSystemPrompt('You are an email assistant. Always draft responses to emails that could benefit from a reply. Return JSON with a draft field containing a helpful response.'));
+        .then((data) => setSystemPrompt(data.prompt || ''))
+        .catch(() => setSystemPrompt(''));
         
       fetch('/api/draft_prompt')
         .then((res) => res.json())
-        .then((data) => setDraftPrompt(data.prompt || 'Always create a helpful, professional response unless the email is clearly spam or automated. Focus on being helpful and engaging.'))
-        .catch(() => setDraftPrompt('Always create a helpful, professional response unless the email is clearly spam or automated. Focus on being helpful and engaging.'));
+        .then((data) => setDraftPrompt(data.prompt || ''))
+        .catch(() => setDraftPrompt(''));
     }
   }, [email, isOpen]);
 
@@ -40,10 +31,6 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
 
   const handleGenerate = async () => {
     setIsGenerating(true);
-    console.log('Generating draft for email:', email.message_id);
-    console.log('System prompt:', systemPrompt);
-    console.log('Draft prompt:', draftPrompt);
-    
     try {
       const response = await fetch('/api/rerun_email', {
         method: 'POST',
@@ -55,16 +42,12 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
         }),
       });
       
-      console.log('Response status:', response.status);
-      
       if (response.ok) {
         const data = await response.json();
-        console.log('Response data:', data);
         setEmailDraft(data.draft || '');
         setLlmPrompt(data.llm_prompt || 'No LLM prompt available');
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to generate draft:', response.status, errorData);
+        console.error('Failed to generate draft:', response.status);
       }
     } catch (error) {
       console.error('Error generating draft:', error);
@@ -83,117 +66,135 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
     }
   };
 
-  // Check if this was a sent email (read-only mode)
+  const toggleSettingsPanel = () => {
+    setIsSettingsPanelExpanded(!isSettingsPanelExpanded);
+  };
+
+  const formatEmailBody = (body) => {
+    if (!body) return '';
+    return body.replace(/<[^>]*>/g, '').trim();
+  };
+  
   const isSentEmail = email.action === 'sent';
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal processed-email-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal awaiting-human-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{isSentEmail ? 'Sent Email' : 'Draft Email'}</h2>
-          <div className="email-info">
-            <div className="subject">Subject: {email.subject}</div>
-            <div className="from">From: {email.from}</div>
-            <div className="action">Action: {email.state.join(' | ')}</div>
+          <div className="email-subject">
+            <span className="subject-label">Re:</span>
+            <span className="subject-text">{email.subject}</span>
+          </div>
+          <button className="close-btn" onClick={onClose} aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>
+          </button>
+        </div>
+        
+        <div className="modal-content">
+          <div className="email-main-area">
+            <div className="email-thread">
+              <div className="email-message original">
+                <div className="message-header">
+                  <div className="sender-info">
+                    <span className="sender">{email.from}</span>
+                    <span className="timestamp">{new Date(email.date || new Date()).toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="message-body">{formatEmailBody(email.body)}</div>
+              </div>
+            </div>
+            
+            <div className="draft-compose-area">
+              <div className="compose-header">
+                <span className="compose-label">{isSentEmail ? 'Sent Response' : 'Generated Response'}</span>
+              </div>
+              <div className="compose-content">
+                <textarea 
+                  className="draft-textarea"
+                  value={emailDraft}
+                  onChange={(e) => setEmailDraft(e.target.value)}
+                  readOnly={isSentEmail}
+                  placeholder={isSentEmail ? "No message content available" : "Generated email draft will appear here..."}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className={`settings-panel ${isSettingsPanelExpanded ? 'expanded' : 'collapsed'}`}>
+            <div className="settings-panel-content">
+              <div className="settings-section">
+                <div className="settings-header">
+                  <h3>AI Settings</h3>
+                  <button className="panel-collapse-btn" onClick={toggleSettingsPanel} aria-label="Collapse settings panel">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/></svg>
+                  </button>
+                </div>
+                <div className="settings-field">
+                  <label>System Prompt</label>
+                  <textarea
+                    className="settings-textarea"
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    placeholder="System prompt for AI..."
+                    rows={4}
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Drafting Instructions</label>
+                  <textarea
+                    className="settings-textarea"
+                    value={draftPrompt}
+                    onChange={(e) => setDraftPrompt(e.target.value)}
+                    placeholder="Customize how the AI should write responses..."
+                    rows={4}
+                  />
+                </div>
+                <div className="settings-field">
+                  <label>Actual LLM Prompt (Debug)</label>
+                  <textarea
+                    className="settings-textarea readonly"
+                    value={llmPrompt}
+                    readOnly
+                    placeholder="The actual content sent to the LLM..."
+                    rows={6}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
-        {isSentEmail ? (
-          // Read-only view for sent emails
-          <div className="modal-content">
-            <div className="left-col">
-              <div className="email-display-section">
-                <label>Original Email Content</label>
-                <textarea 
-                  value={email.body || 'No content available'} 
-                  readOnly 
-                  className="readonly"
-                />
-              </div>
-              <div className="draft-compose-section">
-                <label>Sent Message</label>
-                <textarea
-                  value={emailDraft}
-                  readOnly
-                  className="readonly"
-                  placeholder="No message content available"
-                />
-              </div>
-            </div>
-            <div className="right-col">
-              {/* The right column is intentionally empty for this read-only view */}
-            </div>
-          </div>
-        ) : (
-          // Interactive view for non-sent emails
-          <div className="modal-content">
-            <div className="left-col">
-              <div className="email-display-section">
-                <label>Full Email Content</label>
-                <textarea 
-                  value={userPrompt} 
-                  readOnly 
-                  className="readonly"
-                />
-              </div>
-              <div className="draft-compose-section">
-                <label>Generated Draft</label>
-                <textarea
-                  value={emailDraft}
-                  onChange={(e) => setEmailDraft(e.target.value)}
-                  placeholder="Email draft will appear here..."
-                />
-              </div>
-            </div>
-            <div className="right-col">
-              <label>System Prompt</label>
-              <textarea
-                rows={4}
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder="Email reading system prompt..."
-              />
-              
-              <label>Drafting Instructions</label>
-              <textarea
-                rows={3}
-                value={draftPrompt}
-                onChange={(e) => setDraftPrompt(e.target.value)}
-                placeholder="Drafting prompt instructions..."
-              />
-              
-              <label>Actual LLM Prompt (Debug)</label>
-              <textarea
-                rows={4}
-                value={llmPrompt}
-                readOnly
-                className="readonly"
-                placeholder="The actual content sent to the LLM..."
-              />
-            </div>
-          </div>
-        )}
-        
-        <div className="modal-actions">
-          {!isSentEmail && (
-            <>
+        <div className="modal-footer">
+          <div className="compose-footer-left">
+            {!isSentEmail && (
               <button 
-                onClick={handleGenerate} 
+                className="quick-action-btn"
+                onClick={handleGenerate}
                 disabled={isGenerating || isSending}
-                className="rerun-btn"
               >
-                {isGenerating ? 'Generating...' : 'Generate Draft'}
+                {isGenerating ? 'Regenerating...' : 'Regenerate'}
               </button>
+            )}
+          </div>
+          <div className="compose-footer-right">
+            {!isSentEmail && (
               <button 
-                onClick={handleSend}
-                disabled={isSending || !emailDraft.trim()}
-                className="send-btn"
+                className="settings-toggle-btn"
+                onClick={toggleSettingsPanel}
+                aria-label={isSettingsPanelExpanded ? "Hide Settings" : "Show Settings"}
               >
-                {isSending ? 'Sending...' : 'Send Email'}
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM8 1a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 8 1Zm0 12a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 13Zm5.657-10.243a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0Zm-9.9 9.9a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0ZM15 8a.75.75 0 0 1-.75.75h-.75a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 15 8ZM3 8a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 3 8Zm10.243 5.657a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Zm-9.9-9.9a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Z"/></svg>
+                Settings
               </button>
-            </>
-          )}
-          <button onClick={onClose} disabled={isSending || isGenerating}>Close</button>
+            )}
+            <button 
+              className="send-btn" 
+              onClick={isSentEmail ? onClose : handleSend} 
+              disabled={isSending || (!isSentEmail && !emailDraft.trim())}
+            >
+              {isSentEmail ? 'Close' : (isSending ? 'Sending...' : 'Send Email')}
+            </button>
+          </div>
         </div>
       </div>
     </div>

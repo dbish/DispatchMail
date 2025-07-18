@@ -700,6 +700,30 @@ function App() {
             updateEmailsAndCounts(data || [], data.last_modified);
             setLastUpdated(new Date());
           }}
+          onDelete={async (emailId) => {
+            // Mark as processed with no action and remove draft
+            await fetch('/api/delete_draft', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email_id: emailId }),
+            });
+            setSelectedDraft(null);
+            
+            // Force refresh after deleting
+            setLastModified('');
+            const response = await fetch('/api/emails');
+            const data = await response.json();
+            updateEmailsAndCounts(data.emails || [], data.last_modified);
+            setLastUpdated(new Date());
+          }}
+          onRerun={async () => {
+            // Force refresh after rerunning
+            setLastModified('');
+            const response = await fetch('/api/emails');
+            const data = await response.json();
+            updateEmailsAndCounts(data.emails || [], data.last_modified);
+            setLastUpdated(new Date());
+          }}
         />
       )}
       {selectedAwaitingHuman && (
