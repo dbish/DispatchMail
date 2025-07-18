@@ -13,9 +13,14 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
 
   useEffect(() => {
     if (!isOpen) return;
+    console.log('Fetching whitelist');
     fetch('/api/whitelist')
       .then((res) => res.json())
-      .then((data) => setRules(data.rules || []))
+      .then((data) => {
+        console.log('Whitelist fetched:', data);
+        console.log('Rules:', data.whitelist.rules);
+        setRules(data.whitelist.rules || []);
+      })
       .catch((err) => console.error('Failed to fetch whitelist', err));
   }, [isOpen]);
 
@@ -25,17 +30,16 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
     
     const interval = setInterval(async () => {
       try {
-        const response = await fetch('/api/reprocessing_status');
-        const status = await response.json();
-        setReprocessingStatus(status);
-        
-        if (!status.is_reprocessing) {
-          setMessage('Email reprocessing completed! Your inbox has been updated.');
-          setTimeout(() => {
-            setMessage('');
-            onClose();
-          }, 3000);
-        }
+        setReprocessingStatus({
+          is_reprocessing: true,
+          message: 'Reprocessing emails...'
+        });
+        const response = await fetch('/api/reprocess_all');
+
+        setReprocessingStatus({
+          is_reprocessing: false,
+          message: 'Email reprocessing completed! Your inbox has been updated.'
+        });
       } catch (err) {
         console.error('Failed to check reprocessing status:', err);
       }
@@ -73,8 +77,12 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
       });
       
       if (response.ok) {
-        setMessage('Rules saved successfully! Starting email reprocessing...');
-        setReprocessingStatus({ is_reprocessing: true, message: 'Starting...' });
+        setMessage('Rules saved successfully!');
+        onResetSuccess();
+        setReprocessingStatus({
+          is_reprocessing: true,
+          message: 'Reprocessing emails...'
+        });
       } else {
         setMessage('Failed to save rules. Please try again.');
       }
@@ -82,6 +90,10 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
       setMessage('Error saving rules. Please try again.');
     } finally {
       setIsLoading(false);
+      //clear the message after 3 seconds
+      setTimeout(() => {
+        setMessage('');
+      }, 3000);
     }
   };
 
@@ -132,19 +144,6 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
         {message && (
           <div className={`message ${message.includes('Error') || message.includes('Failed') ? 'error' : 'success'}`}>
             {message}
-          </div>
-        )}
-        
-        {reprocessingStatus.is_reprocessing && (
-          <div className="reprocessing-status">
-            <div className="reprocessing-header">
-              <span className="loading-spinner">🔄</span>
-              <strong>Reprocessing emails...</strong>
-            </div>
-            <div className="reprocessing-message">{reprocessingStatus.message}</div>
-            <p className="reprocessing-note">
-              This may take a few moments. The modal will close automatically when complete.
-            </p>
           </div>
         )}
         

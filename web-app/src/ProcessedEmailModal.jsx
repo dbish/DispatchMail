@@ -18,7 +18,7 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
       
       // If email was sent, show the draft that was sent
       // If email was not sent (like "reviewed (no action needed)"), start with empty or existing draft
-      setEmailDraft(email.draft || '');
+      setEmailDraft(email.drafted_response || '');
       
       // Set the LLM prompt (what was actually sent to the AI)
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
@@ -94,7 +94,7 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
           <div className="email-info">
             <div className="subject">Subject: {email.subject}</div>
             <div className="from">From: {email.from}</div>
-            <div className="action">Action: {email.action}</div>
+            <div className="action">Action: {email.state.join(' | ')}</div>
           </div>
         </div>
         

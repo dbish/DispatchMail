@@ -83,6 +83,7 @@ function App() {
   useEffect(() => {
     if (currentUser) {
       fetchUserProfile();
+      manualSync();
     }
   }, [currentUser]);
 
@@ -162,12 +163,17 @@ function App() {
     if (!currentUser) return;
     
     const fetchEmails = async () => {
+      console.log('Fetching emails');
       setIsRefreshing(true);
       try {
         const response = await fetch('/api/emails');
+        console.log('Response:', response);
         const data = await response.json();
-        const emailsData = data.emails || [];
+        console.log('Data:', data);
+        const emailsData = data || [];
+        console.log('Emails data:', emailsData);
         updateEmailsAndCounts(emailsData, data.last_modified);
+        console.log('Last updated:', new Date());
         setLastUpdated(new Date());
       } catch (err) {
         console.error('Failed to fetch emails', err);
@@ -177,6 +183,7 @@ function App() {
     };
 
     const checkForUpdates = async () => {
+      console.log('Checking for updates');
       // Prevent multiple concurrent update checks
       if (isRefreshing || isCheckingForUpdates) {
         return;
@@ -244,10 +251,12 @@ function App() {
     fetchEmails();
     
     // Set up smart polling every 2 minutes, but only if we have a current user
-    const intervalId = setInterval(checkForUpdates, 120000); // 2 minutes
+    //const intervalId = setInterval(checkForUpdates, 120000); // 2 minutes
     
     // Cleanup interval on unmount
-    return () => clearInterval(intervalId);
+    return () => {
+      //clearInterval(intervalId);
+    };
   }, [currentUser]);
 
   useEffect(() => {
@@ -271,6 +280,8 @@ function App() {
 
   // Helper function to update emails and counts consistently
   const updateEmailsAndCounts = (emailsData, lastModifiedValue) => {
+    console.log('Updating emails and counts');
+    console.log(emailsData);
     setEmails(emailsData);
     setLastModified(lastModifiedValue || '');
     
@@ -284,6 +295,19 @@ function App() {
       awaiting_human_count: awaitingHumanCount,
       processed_count: processedCount
     });
+  };
+
+  const deltaUpdateEmails = (emailsData, lastModifiedValue) => {
+    console.log('Delta updating emails and counts');
+    console.log(emailsData);
+    //update emails
+    for (const email of emailsData) {
+      const index = emails.findIndex(e => e.id === email.id);
+      if (index !== -1) {
+        emails[index] = email;
+      }
+    }
+    setLastModified(lastModifiedValue || '');
   };
 
   // Filter emails based on active tab
@@ -340,33 +364,25 @@ function App() {
     }
   };
 
-  const processUnprocessedEmails = async () => {
+  const processUnprocessedEmails = async (shouldContinue = false) => {
+    console.log('Processing emails');
     setIsProcessing(true);
     
     try {
-      const response = await fetch('/api/process_unprocessed_emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
+      const response = await fetch(`/api/process_emails?paging=${shouldContinue ? 'true' : 'false'}`);
       const data = await response.json();
-      
-      if (response.ok) {
-        console.log(`Processed ${data.processed_count} emails (batch of ${data.batch_size})`);
-        console.log(`Remaining unprocessed: ${data.remaining_unprocessed || 0}`);
-        
-        // Refresh emails after processing
-        const emailResponse = await fetch('/api/emails');
-        const emailData = await emailResponse.json();
-        updateEmailsAndCounts(emailData.emails || [], emailData.last_modified);
-        setLastUpdated(new Date());
+      console.log('Data:', data);
+
+      if (data.state === 'done') {
+        setIsProcessing(false);
       } else {
-        // Handle API errors
-        console.error('API Error:', data.error);
+        const emailData = data.batch;
+        deltaUpdateEmails(emailData || [], '');
+        setLastUpdated(new Date());
+        processUnprocessedEmails(true);
       }
     } catch (error) {
       console.error('Failed to process emails:', error);
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -376,33 +392,14 @@ function App() {
     setSyncMessage('');
     
     try {
-      const response = await fetch('/api/manual_sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        const newEmailsCount = data.results.reduce((total, result) => total + (result.new_emails || 0), 0);
-        if (newEmailsCount > 0) {
-          setSyncMessage(`Found ${newEmailsCount} new email${newEmailsCount === 1 ? '' : 's'}!`);
-          
-          // Refresh emails after sync
-          const emailResponse = await fetch('/api/emails');
-          const emailData = await emailResponse.json();
-          updateEmailsAndCounts(emailData.emails || [], emailData.last_modified);
-          setLastUpdated(new Date());
-        } else {
-          setSyncMessage('No new emails found');
-        }
-        
+      const emailResponse = await fetch('/api/get_updates');
+      console.log('Email response:', emailResponse);
+      const emailData = await emailResponse.json();
+      console.log('Email data:', emailData);
+      updateEmailsAndCounts(emailData || [], '');
+      setLastUpdated(new Date());
         // Clear message after 3 seconds
-        setTimeout(() => setSyncMessage(''), 3000);
-      } else {
-        setSyncMessage('Sync failed');
-        setTimeout(() => setSyncMessage(''), 3000);
-      }
+      setTimeout(() => setSyncMessage(''), 3000);
     } catch (error) {
       console.error('Failed to sync emails:', error);
       setSyncMessage('Sync failed');
@@ -413,21 +410,22 @@ function App() {
   };
 
   const getActionTag = (email) => {
-    if (email.action === 'sent') return 'sent';
-    if (email.action === 'archived') return 'archived';
-    if (email.action === 'drafted') return 'drafted';
-    if (email.action === 'reviewed (no action needed)') return 'reviewed';
-    if (email.action && email.action.startsWith('labeled')) return email.action;
-    if (email.action && email.action.includes('labeled')) return email.action;
-    // Show any other action that exists
-    if (email.action && email.action.trim()) return email.action;
+    if (email.state && email.state.length > 0) {
+      if (email.state.includes('sent')) return 'sent';
+      if (email.state.includes('archived')) return 'archived';
+      if (email.state.includes('drafted_response')) return 'drafted';
+      if (email.state.includes('reviewed (no action needed)')) return 'reviewed';
+      if (email.state.includes('labeled')) return email.state;
+    }
     return null;
   };
 
   const EmailItem = ({ email }) => {
     const isProcessingEmail = email.processing === true;
-    const isAwaitingHuman = email.processed && email.action === 'drafted';
-    const isProcessed = email.processed && email.action !== 'drafted';
+    const isDrafted = email.state.includes('drafted_response');
+    const isSent = email.state.includes('sent');
+    const isAwaitingHuman = email.processed && isDrafted && !isSent;
+    const isProcessed = email.processed && !isDrafted;
     const isUnprocessed = !email.processed;
     
     const handleClick = () => {
@@ -435,7 +433,7 @@ function App() {
         setSelectedAwaitingHuman(email);
       } else if (isProcessed) {
         setSelectedProcessedEmail(email);
-      } else if (email.draft && !email.processed) {
+      } else if (email.drafted_response && !email.processed) {
         setSelectedDraft(email);
       }
     };
@@ -639,7 +637,7 @@ function App() {
           <div className="inbox-section">
             <div className="email-list">
               {allEmails.map((email) => (
-                <EmailItem key={email.message_id} email={email} />
+                <EmailItem key={email.id} email={email} />
               ))}
               {allEmails.length === 0 && (
                 <div className="empty-state">No emails found</div>
@@ -661,7 +659,7 @@ function App() {
         <WhitelistSettingsModal
           isOpen={showWhitelistModal}
           onClose={() => setShowWhitelistModal(false)}
-                      onResetSuccess={() => {
+          onResetSuccess={() => {
               // Clear lastModified state and counts after successful reset
               setLastModified('');
               setLastCounts({
@@ -671,9 +669,10 @@ function App() {
               });
               // Force immediate refresh
               const fetchEmails = async () => {
-                const response = await fetch('/api/emails');
+                console.log('Fetching emails after reset');
+                const response = await fetch('/api/get_updates');
                 const data = await response.json();
-                updateEmailsAndCounts(data.emails || [], data.last_modified);
+                updateEmailsAndCounts(data || [], data.last_modified);
                 setLastUpdated(new Date());
               };
               fetchEmails();
@@ -695,9 +694,10 @@ function App() {
             
             // Force refresh after sending
             setLastModified('');
-            const response = await fetch('/api/emails');
+            console.log('Fetching emails after sending');
+            const response = await fetch('/api/get_updates');
             const data = await response.json();
-            updateEmailsAndCounts(data.emails || [], data.last_modified);
+            updateEmailsAndCounts(data || [], data.last_modified);
             setLastUpdated(new Date());
           }}
         />
@@ -711,7 +711,7 @@ function App() {
             await fetch('/api/send', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: selectedAwaitingHuman.message_id, draft: draftText }),
+              body: JSON.stringify({ id: selectedAwaitingHuman.id, draft: draftText }),
             });
             setSelectedAwaitingHuman(null);
             
@@ -757,7 +757,7 @@ function App() {
             await fetch('/api/send', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: selectedProcessedEmail.message_id, draft: draftText }),
+              body: JSON.stringify({ id: selectedProcessedEmail.id, draft: draftText }),
             });
             setSelectedProcessedEmail(null);
             
