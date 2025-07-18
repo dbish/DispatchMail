@@ -13,12 +13,9 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
 
   useEffect(() => {
     if (!isOpen) return;
-    console.log('Fetching whitelist');
     fetch('/api/whitelist')
       .then((res) => res.json())
       .then((data) => {
-        console.log('Whitelist fetched:', data);
-        console.log('Rules:', data.whitelist.rules);
         setRules(data.whitelist.rules || []);
       })
       .catch((err) => console.error('Failed to fetch whitelist', err));
@@ -35,6 +32,7 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
           message: 'Reprocessing emails...'
         });
         const response = await fetch('/api/reprocess_all');
+        onResetSuccess();
 
         setReprocessingStatus({
           is_reprocessing: false,
@@ -90,10 +88,10 @@ function WhitelistSettingsModal({ isOpen, onClose, onResetSuccess }) {
       setMessage('Error saving rules. Please try again.');
     } finally {
       setIsLoading(false);
-      //clear the message after 3 seconds
+      //clear the message after 5 seconds
       setTimeout(() => {
         setMessage('');
-      }, 3000);
+      }, 5000);
     }
   };
 

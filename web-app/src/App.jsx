@@ -741,9 +741,9 @@ function App() {
             
             // Force refresh after sending
             setLastModified('');
-            const response = await fetch('/api/emails');
+            const response = await fetch('/api/get_updates');
             const data = await response.json();
-            updateEmailsAndCounts(data.emails || [], data.last_modified);
+            updateEmailsAndCounts(data || [], data.last_modified);
             setLastUpdated(new Date());
           }}
           onDelete={async (emailId) => {
