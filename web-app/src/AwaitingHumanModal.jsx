@@ -99,9 +99,19 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
   const extractSenderInfo = () => {
     const from = email.from || '';
     
-    // Ensure from is a string
-    const fromString = typeof from === 'string' ? from : String(from);
+    // Handle array structure: [['Name', 'email@domain.com']]
+    if (Array.isArray(from) && from.length > 0) {
+      const senderData = from[0];
+      if (Array.isArray(senderData) && senderData.length >= 2) {
+        return {
+          senderEmail: senderData[1],
+          senderName: senderData[0]
+        };
+      }
+    }
     
+    // Fallback to string parsing if not array format
+    const fromString = typeof from === 'string' ? from : String(from);
     const emailMatch = fromString.match(/<(.+?)>/);
     const nameMatch = fromString.match(/^(.+?)\s*</);
     
