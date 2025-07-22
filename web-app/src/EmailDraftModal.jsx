@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import './DraftingSettingsModal.css';
+import './EmailModals.css';
 
 export default function EmailDraftModal({ isOpen, onClose, email, onSend, onDelete, onRerun }) {
   const [draftPrompt, setDraftPrompt] = useState('');

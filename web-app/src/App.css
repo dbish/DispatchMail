@@ -286,6 +286,71 @@ body {
   transform: translateY(-1px);
 }
 
+.action-icon.active {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Filter Container */
+.filter-container {
+  position: relative;
+  display: inline-block;
+  z-index: 1000;
+}
+
+/* Filter Dropdown */
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 9999;
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.filter-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #f0f6fc;
+  transition: background-color 0.2s ease;
+}
+
+.filter-option:hover {
+  background-color: #21262d;
+}
+
+.filter-option.active {
+  background-color: #58a6ff;
+  color: white;
+}
+
+.filter-label {
+  font-weight: 500;
+}
+
+.filter-count {
+  color: #8b949e;
+  font-size: 0.75rem;
+}
+
+.filter-option.active .filter-count {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .inbox-status {
   display: flex;
   align-items: center;
