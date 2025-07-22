@@ -626,7 +626,7 @@ function App() {
               className={`tab-button ${activeTab === 'meh' ? 'active' : ''}`}
               onClick={() => setActiveTab('meh')}
             >
-              Meh ({emails.filter(email => {
+              Filtered ({emails.filter(email => {
                 const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
                 return action.includes('promotion') || action.includes('ignore');
               }).length})
