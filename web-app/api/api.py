@@ -8,13 +8,8 @@ import sys
 import importlib.util
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-daemon_service_dir = os.path.join(BASE_DIR, 'daemon-service')
-
-# Add daemon-service to Python path so imports 
-sys.path.insert(0, daemon_service_dir)
-
 # Import database
-database_path = os.path.join(daemon_service_dir, 'database.py')
+database_path = os.path.join(BASE_DIR, 'database.py')
 spec_db = importlib.util.spec_from_file_location('database', database_path)
 database = importlib.util.module_from_spec(spec_db)
 spec_db.loader.exec_module(database)
