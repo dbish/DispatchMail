@@ -1,0 +1,233 @@
+/* Thin Drafting Settings Modal - Compact Design */
+.thin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  padding: 1rem;
+}
+
+.thin-modal {
+  background: #161b22;
+  color: #f0f6fc;
+  border-radius: 12px;
+  width: 90vw;
+  max-width: 600px;
+  max-height: 80vh;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid #30363d;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Compact Header */
+.thin-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #30363d;
+  background: #161b22;
+  flex-shrink: 0;
+}
+
+.thin-modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f0f6fc;
+  margin: 0;
+}
+
+.thin-close-btn {
+  background: transparent;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thin-close-btn:hover {
+  background: #21262d;
+  color: #f0f6fc;
+}
+
+/* Compact Content */
+.thin-modal-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.thin-description {
+  color: #c9d1d9;
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
+.thin-message {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.thin-message.success {
+  background: rgba(46, 160, 67, 0.1);
+  color: #3fb950;
+  border: 1px solid rgba(46, 160, 67, 0.2);
+}
+
+.thin-message.error {
+  background: rgba(248, 81, 73, 0.1);
+  color: #f85149;
+  border: 1px solid rgba(248, 81, 73, 0.2);
+}
+
+/* Draft Prompt Container */
+.thin-draft-prompt-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.thin-prompt-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #f0f6fc;
+  margin: 0;
+}
+
+.thin-prompt-textarea {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #f0f6fc;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 0.75rem;
+  resize: vertical;
+  min-height: 120px;
+  transition: all 0.2s ease;
+}
+
+.thin-prompt-textarea:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.1);
+}
+
+.thin-prompt-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.thin-prompt-textarea::placeholder {
+  color: #8b949e;
+}
+
+.thin-prompt-help {
+  color: #8b949e;
+  font-size: 0.75rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Footer */
+.thin-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #30363d;
+  background: #161b22;
+  flex-shrink: 0;
+}
+
+.thin-footer-right {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.thin-cancel-btn {
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.thin-cancel-btn:hover:not(:disabled) {
+  background: #21262d;
+  border-color: #484f58;
+  color: #f0f6fc;
+}
+
+.thin-save-btn {
+  background: #58a6ff;
+  border: 1px solid #58a6ff;
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.thin-save-btn:hover:not(:disabled) {
+  background: #6ba6ff;
+  border-color: #6ba6ff;
+}
+
+.thin-save-btn:disabled,
+.thin-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .thin-modal {
+    width: 95vw;
+    max-height: 90vh;
+  }
+  
+  .thin-modal-content {
+    padding: 1rem;
+  }
+  
+  .thin-modal-footer {
+    padding: 1rem;
+  }
+  
+  .thin-footer-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .thin-prompt-textarea {
+    min-height: 100px;
+  }
+} 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import DraftingSettingsModal from './DraftingSettingsModal.jsx';
+import ThinDraftingSettingsModal from './ThinDraftingSettingsModal.jsx';
 import ThinWhitelistModal from './ThinWhitelistModal.jsx';
 import EmailDraftModal from './EmailDraftModal.jsx';
 import AwaitingHumanModal from './AwaitingHumanModal.jsx';
@@ -20,12 +20,7 @@ function App() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showWhitelistModal, setShowWhitelistModal] = useState(false);
-  const [draftPrompts, setDraftPrompts] = useState([
-    {
-      name: 'default',
-      prompt: 'Provide concise and polite email drafts.',
-    },
-  ]);
+
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [selectedAwaitingHuman, setSelectedAwaitingHuman] = useState(null);
   const [selectedProcessedEmail, setSelectedProcessedEmail] = useState(null);
@@ -259,14 +254,7 @@ function App() {
     };
   }, [currentUser]);
 
-  useEffect(() => {
-    fetch('/api/draft_prompt')
-      .then((res) => res.json())
-      .then((data) =>
-        setDraftPrompts([{ name: 'default', prompt: data.prompt || '' }])
-      )
-      .catch(() => {});
-  }, []);
+
 
   useEffect(() => {
     // Load the reading system prompt
@@ -648,11 +636,20 @@ function App() {
       </div>
       
       {showDraftModal && (
-        <DraftingSettingsModal
+        <ThinDraftingSettingsModal
           isOpen={showDraftModal}
           onClose={() => setShowDraftModal(false)}
-          prompts={draftPrompts}
-          setPrompts={setDraftPrompts}
+          onResetSuccess={() => {
+            // Force refresh after saving settings
+            const fetchEmails = async () => {
+              console.log('Fetching emails after settings update');
+              const response = await fetch('/api/get_updates');
+              const data = await response.json();
+              updateEmailsAndCounts(data || [], data.last_modified);
+              setLastUpdated(new Date());
+            };
+            fetchEmails();
+          }}
         />
       )}
       {showWhitelistModal && (
