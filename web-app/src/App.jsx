@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './App.css';
 import DraftingSettingsModal from './DraftingSettingsModal.jsx';
-import WhitelistSettingsModal from './WhitelistSettingsModal.jsx';
+import ThinWhitelistModal from './ThinWhitelistModal.jsx';
 import EmailDraftModal from './EmailDraftModal.jsx';
 import AwaitingHumanModal from './AwaitingHumanModal.jsx';
 import ProcessedEmailModal from './ProcessedEmailModal.jsx';
@@ -656,7 +656,7 @@ function App() {
         />
       )}
       {showWhitelistModal && (
-        <WhitelistSettingsModal
+        <ThinWhitelistModal
           isOpen={showWhitelistModal}
           onClose={() => setShowWhitelistModal(false)}
           onResetSuccess={() => {
