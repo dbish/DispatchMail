@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import './DraftingSettingsModal.css';
+import './EmailModals.css';
 
 export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) {
   const [systemPrompt, setSystemPrompt] = useState('');

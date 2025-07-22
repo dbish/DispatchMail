@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import DraftingSettingsModal from './DraftingSettingsModal.jsx';
+import ThinDraftingSettingsModal from './ThinDraftingSettingsModal.jsx';
 import ThinWhitelistModal from './ThinWhitelistModal.jsx';
 import EmailDraftModal from './EmailDraftModal.jsx';
 import AwaitingHumanModal from './AwaitingHumanModal.jsx';
@@ -20,12 +20,7 @@ function App() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showWhitelistModal, setShowWhitelistModal] = useState(false);
-  const [draftPrompts, setDraftPrompts] = useState([
-    {
-      name: 'default',
-      prompt: 'Provide concise and polite email drafts.',
-    },
-  ]);
+
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [selectedAwaitingHuman, setSelectedAwaitingHuman] = useState(null);
   const [selectedProcessedEmail, setSelectedProcessedEmail] = useState(null);
@@ -49,6 +44,24 @@ function App() {
 
   // Tab state for email filtering
   const [activeTab, setActiveTab] = useState('inbox');
+  
+  // Filter state
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFilterDropdown && !event.target.closest('.filter-container')) {
+        setShowFilterDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilterDropdown]);
 
   // Fetch available users when there's no current user
   useEffect(() => {
@@ -259,14 +272,7 @@ function App() {
     };
   }, [currentUser]);
 
-  useEffect(() => {
-    fetch('/api/draft_prompt')
-      .then((res) => res.json())
-      .then((data) =>
-        setDraftPrompts([{ name: 'default', prompt: data.prompt || '' }])
-      )
-      .catch(() => {});
-  }, []);
+
 
   useEffect(() => {
     // Load the reading system prompt
@@ -310,7 +316,40 @@ function App() {
     setLastModified(lastModifiedValue || '');
   };
 
-  // Filter emails based on active tab
+  // Get available filters based on email data
+  const getAvailableFilters = () => {
+    const filters = [
+      { id: 'all', label: 'All Emails', count: emails.length },
+      { id: 'unprocessed', label: 'Unprocessed', count: emails.filter(e => !e.processed).length },
+      { id: 'awaiting_review', label: 'Awaiting Review', count: emails.filter(e => e.processed && e.state && e.state.includes('drafted_response')).length },
+      { id: 'sent', label: 'Sent', count: emails.filter(e => e.state && e.state.includes('sent')).length },
+      { id: 'archived', label: 'Archived', count: emails.filter(e => e.state && e.state.includes('archived')).length },
+      { id: 'tagged', label: 'Tagged', count: emails.filter(e => e.state && e.state.includes('tagged')).length }
+    ];
+
+    // Add custom action-based filters
+    const customActions = new Set();
+    emails.forEach(email => {
+      if (email.action && typeof email.action === 'string' && email.action.trim()) {
+        customActions.add(email.action.toLowerCase());
+      }
+    });
+
+    customActions.forEach(action => {
+      const count = emails.filter(e => e.action && e.action.toLowerCase() === action).length;
+      if (count > 0) {
+        filters.push({
+          id: `action_${action}`,
+          label: action.charAt(0).toUpperCase() + action.slice(1),
+          count: count
+        });
+      }
+    });
+
+    return filters;
+  };
+
+  // Filter emails based on active tab and filter
   const getFilteredEmails = () => {
     const sortedEmails = emails.sort((a, b) => {
       // First priority: unprocessed emails come first
@@ -326,25 +365,57 @@ function App() {
       return dateB - dateA; // Reverse chronological order (newest first)
     });
 
+    // First apply tab filtering
+    let tabFilteredEmails;
     switch (activeTab) {
       case 'inbox':
         // Inbox: everything except Promotion or Ignore
-        return sortedEmails.filter(email => {
+        tabFilteredEmails = sortedEmails.filter(email => {
           const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
           return !action.includes('promotion') && !action.includes('ignore');
         });
+        break;
       case 'all':
         // All Mail: show everything
-        return sortedEmails;
+        tabFilteredEmails = sortedEmails;
+        break;
       case 'meh':
         // Meh: only Promotion and Ignore
-        return sortedEmails.filter(email => {
+        tabFilteredEmails = sortedEmails.filter(email => {
           const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
           return action.includes('promotion') || action.includes('ignore');
         });
+        break;
       default:
-        return sortedEmails;
+        tabFilteredEmails = sortedEmails;
     }
+
+    // Then apply additional filter
+    if (activeFilter === 'all') {
+      return tabFilteredEmails;
+    }
+
+    return tabFilteredEmails.filter(email => {
+      switch (activeFilter) {
+        case 'unprocessed':
+          return !email.processed;
+        case 'awaiting_review':
+          return email.processed && email.state && email.state.includes('drafted_response');
+        case 'sent':
+          return email.state && email.state.includes('sent');
+        case 'archived':
+          return email.state && email.state.includes('archived');
+        case 'tagged':
+          return email.state && email.state.includes('tagged');
+        default:
+          // Handle custom action filters
+          if (activeFilter.startsWith('action_')) {
+            const actionName = activeFilter.replace('action_', '');
+            return email.action && email.action.toLowerCase() === actionName;
+          }
+          return true;
+      }
+    });
   };
 
   const allEmails = getFilteredEmails();
@@ -559,28 +630,37 @@ function App() {
         <section className="right-panel">
           <div className="inbox-header">
             <div className="inbox-actions">
-              <button className="action-icon" title="Select All">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                </svg>
-              </button>
-              <button className="action-icon" title="Filter">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
-                </svg>
-              </button>
-              <button className="action-icon" title="Sort">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="6,9 12,15 18,9"/>
-                </svg>
-              </button>
-              <button className="action-icon" title="More Actions">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="1"/>
-                  <circle cx="19" cy="12" r="1"/>
-                  <circle cx="5" cy="12" r="1"/>
-                </svg>
-              </button>
+              <div className="filter-container">
+                <button 
+                  className={`action-icon ${activeFilter !== 'all' ? 'active' : ''}`} 
+                  title={`Filter (${showFilterDropdown ? 'Open' : 'Closed'})`}
+                  onClick={() => {
+                    console.log('Filter clicked, current state:', showFilterDropdown, 'emails count:', emails.length);
+                    setShowFilterDropdown(!showFilterDropdown);
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
+                  </svg>
+                </button>
+                {showFilterDropdown && (
+                  <div className="filter-dropdown">
+                    {getAvailableFilters().map(filter => (
+                      <button
+                        key={filter.id}
+                        className={`filter-option ${activeFilter === filter.id ? 'active' : ''}`}
+                        onClick={() => {
+                          setActiveFilter(filter.id);
+                          setShowFilterDropdown(false);
+                        }}
+                      >
+                        <span className="filter-label">{filter.label}</span>
+                        <span className="filter-count">({filter.count})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="inbox-status">
               {isRefreshing && <span className="refreshing">🔄 Refreshing...</span>}
@@ -626,7 +706,7 @@ function App() {
               className={`tab-button ${activeTab === 'meh' ? 'active' : ''}`}
               onClick={() => setActiveTab('meh')}
             >
-              Meh ({emails.filter(email => {
+              Filtered ({emails.filter(email => {
                 const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
                 return action.includes('promotion') || action.includes('ignore');
               }).length})
@@ -648,11 +728,20 @@ function App() {
       </div>
       
       {showDraftModal && (
-        <DraftingSettingsModal
+        <ThinDraftingSettingsModal
           isOpen={showDraftModal}
           onClose={() => setShowDraftModal(false)}
-          prompts={draftPrompts}
-          setPrompts={setDraftPrompts}
+          onResetSuccess={() => {
+            // Force refresh after saving settings
+            const fetchEmails = async () => {
+              console.log('Fetching emails after settings update');
+              const response = await fetch('/api/get_updates');
+              const data = await response.json();
+              updateEmailsAndCounts(data || [], data.last_modified);
+              setLastUpdated(new Date());
+            };
+            fetchEmails();
+          }}
         />
       )}
       {showWhitelistModal && (
