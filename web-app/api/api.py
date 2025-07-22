@@ -166,6 +166,106 @@ def reprocess_all():
     asyncio.run(inbox.reretrieve_all())
     return jsonify({'success': True})
 
+@app.route('/api/research_sender', methods=['POST'])
+def research_sender():
+    """Research information about an email sender."""
+    try:
+        data = request.get_json()
+        sender_email = data.get('sender_email')
+        sender_name = data.get('sender_name', '')
+        
+        if not sender_email:
+            return jsonify({'error': 'Sender email required'}), 400
+        
+        # Format input exactly like the example
+        if sender_name:
+            user_input = f"{sender_name},{sender_email}\n\n"
+        else:
+            user_input = f"{sender_email}\n\n"
+        
+        # Use OpenAI to research the sender
+        from openai import OpenAI
+        import config_reader
+        
+        client = OpenAI(api_key=config_reader.OPENAI_API_KEY)
+        
+        # Stick strictly to the example
+        response = client.responses.create(
+            model="gpt-4.1",
+            input=[
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "You are an expert people researcher. You'll be provided an email and your goal is to create a snippet to summarize information about the sender. you can use the domain to understand the organization if it isn't a large email provider, and you can use web search to get info on them."
+                        }
+                    ]
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": user_input
+                        }
+                    ]
+                }
+            ],
+            text={
+                "format": {
+                    "type": "text"
+                }
+            },
+            reasoning={},
+            tools=[
+                {
+                    "type": "web_search_preview",
+                    "user_location": {
+                        "type": "approximate"
+                    },
+                    "search_context_size": "medium"
+                }
+            ],
+            temperature=1,
+            max_output_tokens=2048,
+            top_p=1
+        )
+        # Process the response to extract summary and annotations
+        summary = ""
+        annotations = []
+        
+        for output in response.output:
+            if output.type == "message":
+                # Extract the text content
+                if hasattr(output, 'content') and output.content:
+                    for content in output.content:
+                        if hasattr(content, 'text'):
+                            summary = content.text
+                        # Extract URL citations/annotations
+                        if hasattr(content, 'annotations'):
+                            for annotation in content.annotations:
+                                if annotation.type == "url_citation":
+                                    annotations.append({
+                                        'url': annotation.url,
+                                        'title': getattr(annotation, 'title', ''),
+                                        'description': getattr(annotation, 'title', '')
+                                    })
+        
+        return jsonify({
+            'success': True,
+            'summary': summary,
+            'annotations': annotations,
+            'search_query': user_input.strip()
+        })
+        
+    except Exception as e:
+        print(f"Error in research_sender: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 def get_emails_status():
     """Get email update status."""
     try:
