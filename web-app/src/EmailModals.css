@@ -29,6 +29,249 @@
   overflow: hidden;
 }
 
+/* Research Modal Specific Styles */
+.research-modal {
+  width: 90vw;
+  max-width: 800px;
+  height: 80vh;
+  max-height: 600px;
+}
+
+.research-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.research-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.sender-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sender-name {
+  font-weight: 500;
+  color: #58a6ff;
+  font-size: 0.875rem;
+}
+
+.sender-email {
+  font-size: 0.75rem;
+  color: #8b949e;
+}
+
+.research-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.research-prompt {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.research-prompt p {
+  margin-bottom: 1.5rem;
+  color: #c9d1d9;
+  font-size: 0.875rem;
+}
+
+.research-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #21262d;
+  border: 1px solid #484f58;
+  color: #c9d1d9;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.research-btn:hover:not(:disabled) {
+  background: #30363d;
+  border-color: #58a6ff;
+  color: #f0f6fc;
+}
+
+.research-btn.primary {
+  background: #238636;
+  border-color: #238636;
+  color: #f0f6fc;
+}
+
+.research-btn.primary:hover:not(:disabled) {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+.research-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.research-loading {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #30363d;
+  border-top: 2px solid #58a6ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.research-loading p {
+  color: #8b949e;
+  font-size: 0.875rem;
+}
+
+.research-error {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.research-error p {
+  color: #f85149;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.research-results {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.search-query {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+}
+
+.query-label {
+  font-size: 0.75rem;
+  color: #8b949e;
+  font-weight: 500;
+}
+
+.query-text {
+  font-size: 0.875rem;
+  color: #58a6ff;
+  font-family: monospace;
+}
+
+.summary-section h4,
+.annotations-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.summary-text {
+  padding: 1rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  line-height: 1.6;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+.summary-link {
+  color: #58a6ff;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.summary-link:hover {
+  color: #79c0ff;
+  border-bottom-color: #58a6ff;
+}
+
+.summary-link:visited {
+  color: #bc8cff;
+}
+
+.annotation-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.annotation-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  color: #c9d1d9;
+}
+
+.annotation-tile:hover {
+  background: #21262d;
+  border-color: #58a6ff;
+}
+
+.tile-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tile-domain {
+  font-size: 0.75rem;
+  color: #8b949e;
+  font-weight: 500;
+}
+
+.tile-title {
+  font-size: 0.875rem;
+  color: #c9d1d9;
+  line-height: 1.4;
+}
+
+.research-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 1rem;
+  border-top: 1px solid #30363d;
+}
+
 /* Modal Header */
 .modal-header {
   display: flex;
@@ -112,12 +355,6 @@
   margin-bottom: 0.75rem;
 }
 
-.sender-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
 .sender {
   font-weight: 600;
   color: #f0f6fc;
@@ -159,6 +396,29 @@
 .compose-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.research-sender-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: transparent;
+  border: 1px solid #484f58;
+  color: #c9d1d9;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: fit-content;
+  font-family: inherit;
+}
+
+.research-sender-btn:hover {
+  background: #21262d;
+  border-color: #58a6ff;
+  color: #f0f6fc;
 }
 
 .settings-toggle-btn {
