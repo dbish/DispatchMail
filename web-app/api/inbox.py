@@ -218,6 +218,7 @@ class Inbox:
         HYDRATED = 'hydrated'
         UPDATING = 'updating'
         UPDATED = 'updated'
+        REPROCESSING = 'reprocessing'
         PROCESSING = 'processing'
         DONE = 'done'
 
@@ -237,6 +238,7 @@ class Inbox:
         self.agent = Agent("openai")
         self.state = self.State.UNINITIALIZED
         self.db = None
+        self.update_delta = None
 
     def update_state(self, new_state):
         print(f"Updating state from {self.state} to {new_state}")
@@ -252,8 +254,24 @@ class Inbox:
                 print('already updating')
         elif new_state == self.State.UPDATED:
             self.state = self.State.UPDATED
+        elif new_state == self.State.REPROCESSING:
+            if self.state == self.State.UNINITIALIZED or self.state == self.State.HYDRATING:
+                print('skipping processing because not hydrated')
+            elif self.state == self.State.REPROCESSING:
+                print('already reprocessing')
+            else:
+                print('starting reprocessing')
+                self.state = self.State.REPROCESSING
+                self.clear_all_processed()
+                self.update_state(self.State.PROCESSING)
         elif new_state == self.State.PROCESSING:
-            self.state = self.State.PROCESSING
+            if self.state == self.State.UNINITIALIZED or self.state == self.State.HYDRATING:
+                print('skipping processing because not hydrated')
+            else:
+                print('processing batch')
+                #this is a reset of the unprocessed message ids
+                self.state = self.State.PROCESSING
+                asyncio.run(self.continue_processing())
         elif new_state == self.State.DONE:
             self.state = self.State.DONE
     
@@ -355,7 +373,9 @@ class Inbox:
     async def continue_processing(self):
         #create the next batch of emails to process
         if len(self.unprocessed_message_ids) == 0:
-            return {"batch": [], "state": "done"}
+            self.update_state(self.State.DONE)
+            self.update_delta = {"batch": [], "state": "done"}
+            return
 
         #always batch the last self.BATCH_SIZE emails instead of the first
         batch = self.unprocessed_message_ids[-self.BATCH_SIZE:]
@@ -365,7 +385,7 @@ class Inbox:
         for email_id in batch:
             email = self.emails[email_id]
             email_data.append(email.to_dict())
-        return {"batch": email_data, "state": "processed"}
+        self.update_delta = {"batch": email_data, "state": "processed"}
 
     def get_latest_email(self):
         #get the latest email

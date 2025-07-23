@@ -56,11 +56,13 @@ def get_emails():
 
 @app.route('/api/process_emails', methods=['GET'])
 def process_emails():
-    paging = request.args.get('paging')
-    if paging == 'false':
-        inbox.clear_all_processed()
-    result = asyncio.run(inbox.continue_processing())
-    return jsonify(result)
+    inbox.update_state(inbox.State.PROCESSING)
+    return jsonify(inbox.update_delta)
+
+@app.route('/api/reprocess_all', methods=['GET'])
+def reprocess_all():
+    inbox.update_state(inbox.State.REPROCESSING)
+    return jsonify(inbox.update_delta)
 
 @app.route('/api/emails/<message_id>', methods=['GET'])
 def get_email(message_id):
@@ -171,11 +173,6 @@ def get_whitelist():
             return jsonify({'whitelist': inbox.whitelist.to_json()})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-
-@app.route('/api/reprocess_all', methods=['GET'])
-def reprocess_all():
-    asyncio.run(inbox.reretrieve_all())
-    return jsonify({'success': True})
 
 @app.route('/api/research_sender', methods=['POST'])
 def research_sender():
