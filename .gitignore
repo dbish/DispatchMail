@@ -209,3 +209,5 @@ daemon-service/secrets.py
 dmail.db
 daemon-service/emails.db
 web-app/api/secrets.py
+old_dmail.db
+old_dmail.db-journal
