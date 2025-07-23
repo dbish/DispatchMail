@@ -90,6 +90,7 @@ def get_user_profile():
         # Check if user exists
         users = db.get_users()
         user = None
+        print(f"Users: {users}")
         for u in users:
             if u.get('user') == email:
                 user = u

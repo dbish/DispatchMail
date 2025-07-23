@@ -1,4 +1,4 @@
-# dMail - Local Email AI Assistant
+# DispatchMail - Local Email AI Assistant
 
 dMail is an AI-powered email assistant that helps you manage your inbox locally using SQLite. It monitors your email, processes it with AI, and provides a web interface for managing drafts and responses.
 

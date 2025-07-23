@@ -438,6 +438,7 @@ body {
   width: 100%;
   box-sizing: border-box;
   height: calc(100vh - 200px); /* Account for header, tabs, and other UI elements */
+  padding-bottom: var(--space-xl); /* Add bottom padding so last email is always visible */
 }
 
 /* Email Item */
@@ -1069,6 +1070,7 @@ body {
   
   .email-list {
     max-height: 400px;
+    padding-bottom: var(--space-xl); /* Ensure last email is visible on mobile too */
   }
   
   .email-item {

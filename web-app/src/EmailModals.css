@@ -341,8 +341,8 @@
 }
 
 .email-message.original {
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: #ffffff;
+  border: 1px solid #d1d9e0;
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -357,16 +357,16 @@
 
 .sender {
   font-weight: 600;
-  color: #f0f6fc;
+  color: #0969da;
 }
 
 .timestamp {
   font-size: 0.75rem;
-  color: #8b949e;
+  color: #656d76;
 }
 
 .message-body {
-  color: #c9d1d9;
+  color: #24292f;
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -666,15 +666,15 @@
 }
 
 .awaiting-human-modal .email-message.original {
-  background: #0d1117;
-  border: 1px solid #30363d;
+  background: #ffffff;
+  border: 1px solid #d1d9e0;
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 1rem;
 }
 
 .awaiting-human-modal .message-body {
-  color: #c9d1d9;
+  color: #24292f;
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
