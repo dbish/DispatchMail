@@ -70,7 +70,7 @@ export default function ProcessingModal({ isOpen, onClose, onProcessUnprocessed,
                   onClick={handleProcessAll}
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Processing...' : 'Process All (Coming Soon)'}
+                  {isProcessing ? 'Processing...' : 'Process All'}
                 </button>
               </div>
             </div>

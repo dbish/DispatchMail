@@ -5,10 +5,6 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
   const [rules, setRules] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [reprocessingStatus, setReprocessingStatus] = useState({
-    is_reprocessing: false,
-    message: ''
-  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -19,31 +15,6 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
       })
       .catch((err) => console.error('Failed to fetch whitelist', err));
   }, [isOpen]);
-
-  // Poll for reprocessing status
-  useEffect(() => {
-    if (!reprocessingStatus.is_reprocessing) return;
-    
-    const interval = setInterval(async () => {
-      try {
-        setReprocessingStatus({
-          is_reprocessing: true,
-          message: 'Reprocessing emails...'
-        });
-        await fetch('/api/reprocess_all');
-        onResetSuccess();
-
-        setReprocessingStatus({
-          is_reprocessing: false,
-          message: 'Email reprocessing completed! Your inbox has been updated.'
-        });
-      } catch (err) {
-        console.error('Failed to check reprocessing status:', err);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [reprocessingStatus.is_reprocessing, onClose]);
 
   if (!isOpen) return null;
 
@@ -142,7 +113,7 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
                   <select
                     value={rule.type}
                     onChange={(e) => updateRule(idx, 'type', e.target.value)}
-                    disabled={isLoading || reprocessingStatus.is_reprocessing}
+                    disabled={isLoading}
                     className="thin-rule-select"
                   >
                     <option value="email">Email Address</option>
@@ -158,13 +129,13 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
                       rule.type === 'subject' ? '[agent]' :
                       'Describe emails to allow'
                     }
-                    disabled={isLoading || reprocessingStatus.is_reprocessing}
+                    disabled={isLoading}
                     className="thin-rule-input"
                   />
                   <button 
                     type="button" 
                     onClick={() => removeRule(idx)}
-                    disabled={isLoading || reprocessingStatus.is_reprocessing}
+                    disabled={isLoading}
                     className="thin-remove-btn"
                   >
                     ×
@@ -176,7 +147,7 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
           
           <button 
             onClick={addRule} 
-            disabled={isLoading || reprocessingStatus.is_reprocessing}
+            disabled={isLoading}
             className="thin-add-rule-btn"
           >
             + Add Rule
@@ -185,25 +156,18 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
         
         <div className="thin-modal-footer">
           <div className="thin-footer-left">
-            <button 
-              onClick={applyToAllMailStub} 
-              disabled={isLoading || reprocessingStatus.is_reprocessing}
-              className="thin-secondary-btn"
-            >
-              {reprocessingStatus.is_reprocessing ? 'Processing...' : 'Apply to All Mail (Coming Soon)'}
-            </button>
           </div>
           <div className="thin-footer-right">
             <button 
               onClick={onClose} 
-              disabled={isLoading || reprocessingStatus.is_reprocessing}
+              disabled={isLoading}
               className="thin-cancel-btn"
             >
-              {reprocessingStatus.is_reprocessing ? 'Processing...' : 'Cancel'}
+              {'Cancel'}
             </button>
             <button 
               onClick={saveRules} 
-              disabled={isLoading || reprocessingStatus.is_reprocessing}
+              disabled={isLoading}
               className="thin-save-btn"
             >
               {isLoading ? 'Saving...' : 'Save Rules'}

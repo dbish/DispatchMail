@@ -6,6 +6,11 @@ import json
 import uuid
 import asyncio
 
+def convert_to_datetime_from_string(date_str):
+    #convert a datetime string to a datetime object
+    #date_str is in the format "2025-07-22 19:39:58"
+    return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+
 class Email:
     def __init__(self, id, subject, body, full_body='', html='', from_='', to='', date='', processed=False, state=[], drafted_response=None):
         self.id = id
@@ -15,7 +20,10 @@ class Email:
         self.html = html
         self.from_ = from_
         self.to = to
-        self.date = date
+        if isinstance(date, str):
+            self.date = convert_to_datetime_from_string(date)
+        else:
+            self.date = date
         self.processed = processed
         self.state = state #list of states to show
         self.drafted_response = drafted_response
@@ -272,6 +280,7 @@ class Inbox:
                 #this is a reset of the unprocessed message ids
                 self.state = self.State.PROCESSING
                 asyncio.run(self.continue_processing())
+                self.save_emails()
         elif new_state == self.State.DONE:
             self.state = self.State.DONE
     
@@ -324,6 +333,7 @@ class Inbox:
     async def update(self):
         print('Updating update')
         self.state = self.State.UPDATING
+        print(self.last_retrieved_date)
         #get new emails (get inputs/changes)
         if self.retrieve_function is None:
             raise ValueError("retrieve_function is not set")
@@ -350,8 +360,30 @@ class Inbox:
         self.save_emails()
         self.update_state(self.State.UPDATED)
         return num_new_emails
+    
+    async def resync(self):
+        self.state = self.State.UPDATING
+        #resync the inbox based on the current whitelist
+        #first get any new emails
+        num_new_emails = await self.update()
+        #then rerun all emails against the whitelist
+        emails_to_delete = []
+        for email_id in self.emails:
+            if not await self.whitelist.filter(self.emails[email_id]): 
+                #no longer passed the whitelist, delete it
+                emails_to_delete.append(email_id)
+        
+        
+        #delete any emails that are on the delete list
+        for email_id in emails_to_delete:
+            del self.emails[email_id]
+            if email_id in self.unprocessed_message_ids:
+                self.unprocessed_message_ids.remove(email_id)
+        self.db.bulk_delete_emails(emails_to_delete, self.user)
+        self.update_state(self.State.UPDATED)
 
     def save_emails(self):
+        print('in save_emails')
         emails_to_put = [email.to_db_dict() for email in self.emails.values()]
         if len(emails_to_put) > 0:
             self.db.bulk_put_emails(emails_to_put, self.user)
@@ -391,7 +423,7 @@ class Inbox:
         #get the latest email
         if not self.emails:
             return None
-        return max(self.emails.values(), key=lambda x: x.date)
+        return max(self.emails.values(), key=lambda x: str(x.date))
 
     def send(self, email_id, draft_text):
         email = self.emails[email_id]
@@ -410,9 +442,6 @@ class Inbox:
             email = self.emails[email_id]
             tasks.append(self.agent.process_email(email))
         await asyncio.gather(*tasks)
-        print('saving emails')
-        self.save_emails()
-        print('emails saved')
 
     def bulk_load_emails(self, emails):
         #bulk load emails into the inbox

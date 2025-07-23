@@ -133,6 +133,20 @@ class DatabaseManager:
             print(f"Error storing email: {e}")
             return False
 
+    def bulk_delete_emails(self, message_ids: List[str], account: str) -> bool:
+        """Bulk delete emails from the database."""
+        try:
+            with self.lock:
+                conn = self.get_connection()
+                cursor = conn.cursor()
+                for message_id in message_ids:
+                    cursor.execute('DELETE FROM emails WHERE message_id = ? AND account = ?', (message_id, account))
+                conn.commit()
+                conn.close()
+            return True
+        except Exception as e:
+            print(f"Error deleting emails: {e}")
+
     def bulk_put_emails(self, emails: List[Dict[str, Any]], account: str) -> bool:
         """Bulk store emails in the database."""
         try:
@@ -162,14 +176,16 @@ class DatabaseManager:
                         email['sent_body'] or '',
                         account
                     ))
-                
                 # Execute the bulk insert
-                cursor.executemany('''
-                    INSERT OR REPLACE INTO emails 
-                    (message_id, subject, body, full_body, html, from_, to_, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, account)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', values)
-                
+                try:
+                    cursor.executemany('''
+                        INSERT OR REPLACE INTO emails 
+                        (message_id, subject, body, full_body, html, from_, to_, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, account)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', values)
+                except Exception as e:
+                    print(f"Error executing bulk insert: {e}")
+                    print(f"Values: {values}")
                 conn.commit()
                 conn.close()
                 return True

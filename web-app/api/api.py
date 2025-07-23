@@ -166,6 +166,9 @@ def get_whitelist():
         print(f"Received whitelist: {data}")
         inbox.whitelist.update_from_json(data)
         inbox.save_whitelist()
+        print('resyncing')
+        asyncio.run(inbox.resync())
+        print('resync done')
         return jsonify({'success': True})
     else:
         print(len(inbox.whitelist.filters))

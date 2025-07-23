@@ -96,9 +96,27 @@ function App() {
 
   // Fetch user profile when currentUser changes
   useEffect(() => {
+    const fetchEmails = async () => {
+      setIsRefreshing(true);
+      try {
+        const response = await fetch('/api/emails');
+        const data = await response.json();
+        console.log('Data:', data);
+        const emailsData = data || [];
+        console.log('Emails data:', emailsData);
+        updateEmailsAndCounts(emailsData, data.last_modified);
+        console.log('Last updated:', new Date());
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.error('Failed to fetch emails', err);
+      } finally {
+        setIsRefreshing(false);
+      }
+    };
+
     if (currentUser) {
       fetchUserProfile();
-      manualSync();
+      fetchEmails();//manualSync();
     }
   }, [currentUser]);
 
@@ -463,9 +481,28 @@ function App() {
   };
 
   const handleProcessAllEmails = async () => {
-    console.log('Process All Emails - Not yet implemented');
     // This is a no-op for now as requested
+    setIsProcessing(true);
     setShowProcessingModal(false);
+    try {
+      const response = await fetch('/api/reprocess_all');
+      const data = await response.json();
+      console.log('Data:', data);
+      if (data.state === 'done') {
+        setIsProcessing(false);
+        setShowProcessingModal(false);
+      } else {
+        const emailData = data.batch;
+        deltaUpdateEmails(emailData || [], '');
+        setLastUpdated(new Date());
+        processUnprocessedEmails(true);
+      }
+    } catch (error) {
+      console.error('Failed to reprocess all emails:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+    
   };
 
   const manualSync = async () => {
@@ -770,7 +807,7 @@ function App() {
               // Force immediate refresh
               const fetchEmails = async () => {
                 console.log('Fetching emails after reset');
-                const response = await fetch('/api/get_updates');
+                const response = await fetch('/api/emails');
                 const data = await response.json();
                 updateEmailsAndCounts(data || [], data.last_modified);
                 setLastUpdated(new Date());
@@ -795,7 +832,7 @@ function App() {
             // Force refresh after sending
             setLastModified('');
             console.log('Fetching emails after sending');
-            const response = await fetch('/api/get_updates');
+            const response = await fetch('/api/emails');
             const data = await response.json();
             updateEmailsAndCounts(data || [], data.last_modified);
             setLastUpdated(new Date());
@@ -841,7 +878,7 @@ function App() {
             
             // Force refresh after sending
             setLastModified('');
-            const response = await fetch('/api/get_updates');
+            const response = await fetch('/api/emails');
             const data = await response.json();
             updateEmailsAndCounts(data || [], data.last_modified);
             setLastUpdated(new Date());
