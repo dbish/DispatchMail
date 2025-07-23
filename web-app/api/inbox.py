@@ -12,7 +12,7 @@ def convert_to_datetime_from_string(date_str):
     return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
 
 class Email:
-    def __init__(self, id, subject, body, full_body='', html='', from_='', to='', date='', processed=False, state=[], drafted_response=None):
+    def __init__(self, id, subject, body, full_body='', html='', from_='', to='', date='', processed=False, state=[], drafted_response=None, tags=[]):
         self.id = id
         self.subject = subject
         self.body = body
@@ -33,6 +33,7 @@ class Email:
         self.sent_subject = None
         self.sent_body = None
         self.action = 'drafted' #testing
+        self.tags = tags
         
     async def update(self):
         pass
@@ -67,6 +68,7 @@ class Email:
             "processed": self.processed,
             "state": self.state,
             "drafted_response": self.drafted_response,
+            "tags": self.tags,
         }
 
     def to_db_dict(self):
@@ -87,6 +89,7 @@ class Email:
             "sent_to": self.sent_to or '',
             "sent_subject": self.sent_subject or '',
             "sent_body": self.sent_body or '',
+            "tags": json.dumps(self.tags),
         }
 
 class FilterList:
@@ -310,6 +313,7 @@ class Inbox:
                     processed=email['processed'],
                     state=json.loads(email['state']),
                     drafted_response=email['drafted_response'],
+                    tags=json.loads(email['tags']),
                     )
                 if not email['processed']:
                     self.unprocessed_message_ids.append(email['message_id'])
@@ -469,22 +473,3 @@ class Inbox:
             email = self.emails[email_id]
             tasks.append(self.agent.process_email(email))
         await asyncio.gather(*tasks)
-
-    def bulk_load_emails(self, emails):
-        #bulk load emails into the inbox
-        for email in emails:
-            self.emails[email['message_id']] = Email(
-                id=email['message_id'],
-                subject=email['subject'] or '',
-                body=email['body'] or '',
-                full_body=email['full_body'] or '',
-                html=email['html'] or '',
-                from_=email['from_sender'] or '',
-                to=email['to_recipients'] or '',
-                date=email['date'] or '',
-                processed=email['processed'] or False,
-                state=email['action'] or [],
-                drafted_response=email['draft'] or None,
-                llm_prompt=email['llm_prompt'] or '',
-                processing=email['processing'] or False
-            )

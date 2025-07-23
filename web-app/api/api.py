@@ -57,7 +57,13 @@ def get_users():
 
 @app.route('/api/emails', methods=['GET'])
 def get_emails():
-    return jsonify([email.to_dict() for email in inbox.emails.values()])
+    results = []
+    try:
+        for email in inbox.emails.values():
+            results.append(email.to_dict())
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/process_emails', methods=['GET'])
 def process_emails():

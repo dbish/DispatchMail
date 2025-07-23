@@ -41,6 +41,7 @@ class DatabaseManager:
                     sent_to TEXT,
                     sent_subject TEXT,
                     sent_body TEXT,
+                    tags TEXT,
                     account TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -125,6 +126,7 @@ class DatabaseManager:
                     email_data.get('sent_to', ''),
                     email_data.get('sent_subject', ''),
                     email_data.get('sent_body', ''),
+                    email_data.get('tags', ''),
                     account
                 ))
                 
@@ -176,14 +178,15 @@ class DatabaseManager:
                         email['sent_to'] or '',
                         email['sent_subject'] or '',
                         email['sent_body'] or '',
+                        email['tags'] or '',
                         account
                     ))
                 # Execute the bulk insert
                 try:
                     cursor.executemany('''
                         INSERT OR REPLACE INTO emails 
-                        (message_id, subject, body, full_body, html, from_, to_, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, account)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (message_id, subject, body, full_body, html, from_, to_, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, tags, account)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', values)
                 except Exception as e:
                     print(f"Error executing bulk insert: {e}")
@@ -318,8 +321,6 @@ class DatabaseManager:
                         'processing_prompt': data.get('processing_prompt', ''),
                         'rules': data.get('rules', '')
                     }
-                print(f"Final data: {final_data}")
-                print(f"User: {user}")
 
                 cursor.execute('''
                     INSERT OR REPLACE INTO metadata 
