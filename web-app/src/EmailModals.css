@@ -155,8 +155,12 @@
    REDESIGNED RESEARCH MODAL - MODERN UX
    ======================================== */
 
-/* Modal Container */
+/* Modal Container - Completely Independent */
 .research-modal-redesigned {
+  /* Reset any inherited styles */
+  all: initial;
+  
+  /* Modal positioning and structure */
   width: 90vw;
   max-width: 900px;
   height: auto;
@@ -169,10 +173,55 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  
+  /* Explicit font stack to prevent inheritance */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  text-align: left;
+  text-decoration: none;
+  
+  /* Box model reset */
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Comprehensive reset for all research modal children to prevent email styling inheritance */
+.research-modal-redesigned * {
+  box-sizing: border-box;
+}
+
+.research-modal-redesigned h1,
+.research-modal-redesigned h2, 
+.research-modal-redesigned h3,
+.research-modal-redesigned h4,
+.research-modal-redesigned h5,
+.research-modal-redesigned h6 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  color: #f0f6fc;
+  margin: 0;
+  line-height: 1.25;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.research-modal-redesigned p {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  line-height: 1.5;
+  color: inherit;
+  text-decoration: none;
+}
+
+.research-modal-redesigned div {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Enhanced Header */
-.research-modal-header {
+.research-modal-redesigned .research-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -180,9 +229,10 @@
   border-bottom: 1px solid #30363d;
   background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
   position: relative;
+  box-sizing: border-box;
 }
 
-.research-modal-header::before {
+.research-modal-redesigned .research-modal-header::before {
   content: '';
   position: absolute;
   top: 0;
@@ -192,37 +242,41 @@
   background: linear-gradient(90deg, #58a6ff, #1f6feb, #58a6ff);
 }
 
-.research-header-content {
+.research-modal-redesigned .research-header-content {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   flex: 1;
 }
 
-.research-title-section {
+.research-modal-redesigned .research-title-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.research-title {
+.research-modal-redesigned .research-title {
   margin: 0;
   font-size: 1.75rem;
   font-weight: 700;
   color: #f0f6fc;
   letter-spacing: -0.025em;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  text-decoration: none;
+  text-transform: none;
 }
 
-.research-subtitle {
+.research-modal-redesigned .research-subtitle {
   margin: 0;
   font-size: 0.9rem;
   color: #8b949e;
   font-weight: 400;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  text-decoration: none;
+  text-transform: none;
 }
 
-.sender-card {
+.research-modal-redesigned .sender-card {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -233,7 +287,7 @@
   backdrop-filter: blur(8px);
 }
 
-.sender-avatar {
+.research-modal-redesigned .sender-avatar {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,14 +299,14 @@
   flex-shrink: 0;
 }
 
-.sender-details {
+.research-modal-redesigned .sender-details {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   min-width: 0;
 }
 
-.sender-name-primary {
+.research-modal-redesigned .sender-name-primary {
   font-size: 1rem;
   font-weight: 600;
   color: #f0f6fc;
@@ -260,18 +314,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
-.sender-email-primary {
+.research-modal-redesigned .sender-email-primary {
   font-size: 0.85rem;
   color: #8b949e;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
-.research-close-btn {
+.research-modal-redesigned .research-close-btn {
   background: transparent;
   border: none;
   color: #8b949e;
@@ -286,21 +342,21 @@
   margin-right: -0.5rem;
 }
 
-.research-close-btn:hover {
+.research-modal-redesigned .research-close-btn:hover {
   background: rgba(248, 81, 73, 0.1);
   color: #f85149;
   transform: scale(1.05);
 }
 
 /* Modal Body */
-.research-modal-body {
+.research-modal-redesigned .research-modal-body {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
 }
 
 /* Empty State */
-.research-empty-state {
+.research-modal-redesigned .research-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -310,29 +366,30 @@
   min-height: 400px;
 }
 
-.empty-state-icon {
+.research-modal-redesigned .empty-state-icon {
   color: #58a6ff;
   margin-bottom: 1.5rem;
   opacity: 0.8;
 }
 
-.empty-state-title {
+.research-modal-redesigned .empty-state-title {
   margin: 0 0 1rem;
   font-size: 1.5rem;
   font-weight: 600;
   color: #f0f6fc;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
-.empty-state-description {
+.research-modal-redesigned .empty-state-description {
   margin: 0 0 2rem;
   font-size: 1rem;
   color: #8b949e;
   line-height: 1.6;
   max-width: 480px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
-.research-cta-btn {
+.research-modal-redesigned .research-cta-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
@@ -346,12 +403,160 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
 .research-cta-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #2ea043, #238636);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(35, 134, 54, 0.4);
+}
+
+/* Research Prompt Section Styles */
+.research-prompt-section {
+  width: 100%;
+  max-width: 600px;
+  margin: 2rem 0;
+  background: rgba(13, 17, 23, 0.6);
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.prompt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: rgba(33, 38, 45, 0.8);
+  border-bottom: 1px solid #30363d;
+}
+
+.prompt-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f0f6fc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+}
+
+.prompt-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.prompt-edit-btn,
+.prompt-reset-btn {
+  background: transparent;
+  border: 1px solid #484f58;
+  color: #8b949e;
+  padding: 0.375rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prompt-edit-btn:hover,
+.prompt-reset-btn:hover {
+  background: rgba(139, 148, 158, 0.1);
+  border-color: #58a6ff;
+  color: #58a6ff;
+}
+
+.prompt-display {
+  padding: 1.25rem;
+}
+
+.prompt-text {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #c9d1d9;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #0d1117;
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+}
+
+.prompt-editor {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.prompt-textarea {
+  width: 100%;
+  min-height: 120px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #f0f6fc;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding: 0.75rem;
+  resize: vertical;
+  transition: all 0.2s ease;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.prompt-textarea::placeholder {
+  color: #8b949e;
+}
+
+.prompt-editor-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.prompt-save-btn {
+  background: #238636;
+  border: 1px solid #238636;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+}
+
+.prompt-save-btn:hover {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+.prompt-cancel-btn {
+  background: transparent;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+}
+
+.prompt-cancel-btn:hover {
+  background: rgba(139, 148, 158, 0.1);
+  border-color: #484f58;
+  color: #c9d1d9;
 }
 
 /* Loading State */
@@ -385,12 +590,12 @@
   align-items: center;
 }
 
-.loading-title {
+.research-modal-redesigned .loading-title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
   color: #f0f6fc;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
 .loading-description {
@@ -449,12 +654,12 @@
   opacity: 0.8;
 }
 
-.error-title {
+.research-modal-redesigned .error-title {
   margin: 0 0 1rem;
   font-size: 1.25rem;
   font-weight: 600;
   color: #f0f6fc;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
 .error-description {
@@ -565,12 +770,12 @@
   gap: 0.25rem;
 }
 
-.section-title {
+.research-modal-redesigned .section-title {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
   color: #f0f6fc;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
 }
 
 .section-subtitle {
@@ -1492,6 +1697,42 @@
   }
   
   .modal-footer .compose-footer-right {
+    width: 100%;
+    justify-content: center;
+  }
+} 
+
+/* Mobile responsiveness for prompt section */
+@media (max-width: 768px) {
+  .research-prompt-section {
+    margin: 1.5rem 0;
+  }
+  
+  .prompt-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .prompt-display,
+  .prompt-editor {
+    padding: 1rem;
+  }
+  
+  .prompt-text {
+    font-size: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  .prompt-textarea {
+    font-size: 0.75rem;
+    min-height: 100px;
+  }
+  
+  .prompt-editor-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .prompt-save-btn,
+  .prompt-cancel-btn {
     width: 100%;
     justify-content: center;
   }

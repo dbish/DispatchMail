@@ -5,6 +5,15 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
   const [isLoading, setIsLoading] = useState(false);
   const [researchData, setResearchData] = useState(null);
   const [error, setError] = useState('');
+  
+  // Default research prompt
+  const defaultPrompt = `You are an expert people researcher. You'll be provided an email and your goal is to create a snippet to summarize information about the sender. you can use the domain to understand the organization if it isn't a large email provider, and you can use web search to get info on them.
+
+Email: ${senderEmail}
+Name: ${senderName || 'Unknown'}`;
+
+  const [researchPrompt, setResearchPrompt] = useState(defaultPrompt);
+  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
 
   const handleResearch = async () => {
     setIsLoading(true);
@@ -17,7 +26,8 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sender_email: senderEmail,
-          sender_name: senderName || ''
+          sender_name: senderName || '',
+          research_prompt: researchPrompt // Include the custom prompt
         }),
       });
       
@@ -34,6 +44,17 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePromptUpdate = () => {
+    // For now, this is a no-op as requested
+    // In the future, this could save the prompt to user preferences
+    setIsEditingPrompt(false);
+  };
+
+  const handlePromptReset = () => {
+    setResearchPrompt(defaultPrompt);
+    setIsEditingPrompt(false);
   };
 
   const handleAnnotationClick = (annotation) => {
@@ -86,7 +107,7 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal research-modal-redesigned" onClick={(e) => e.stopPropagation()}>
+      <div className="research-modal-redesigned" onClick={(e) => e.stopPropagation()}>
         {/* Enhanced Header with Better Information Hierarchy */}
         <div className="research-modal-header">
           <div className="research-header-content">
@@ -129,6 +150,8 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
               <p className="empty-state-description">
                 Get background information, company details, and context about this email sender to help you make informed decisions.
               </p>
+              
+              {/* Start Research Button - Moved above the prompt */}
               <button 
                 className="research-cta-btn"
                 onClick={handleResearch}
@@ -139,6 +162,69 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
                 </svg>
                 Start Research
               </button>
+              
+              {/* Research Prompt Section - Now below the button */}
+              <div className="research-prompt-section">
+                <div className="prompt-header">
+                  <h4 className="prompt-title">Research Prompt</h4>
+                  <div className="prompt-controls">
+                    <button 
+                      className="prompt-edit-btn"
+                      onClick={() => setIsEditingPrompt(!isEditingPrompt)}
+                      title={isEditingPrompt ? "Cancel editing" : "Edit prompt"}
+                    >
+                      {isEditingPrompt ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        </svg>
+                      )}
+                    </button>
+                    <button 
+                      className="prompt-reset-btn"
+                      onClick={handlePromptReset}
+                      title="Reset to default prompt"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                {isEditingPrompt ? (
+                  <div className="prompt-editor">
+                    <textarea
+                      className="prompt-textarea"
+                      value={researchPrompt}
+                      onChange={(e) => setResearchPrompt(e.target.value)}
+                      placeholder="Enter your research prompt..."
+                      rows="6"
+                    />
+                    <div className="prompt-editor-actions">
+                      <button 
+                        className="prompt-save-btn"
+                        onClick={handlePromptUpdate}
+                      >
+                        Save Changes
+                      </button>
+                      <button 
+                        className="prompt-cancel-btn"
+                        onClick={() => setIsEditingPrompt(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prompt-display">
+                    <pre className="prompt-text">{researchPrompt}</pre>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           
@@ -272,7 +358,7 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
                   disabled={isLoading}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6 6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
                   </svg>
                   Refresh Research
                 </button>
