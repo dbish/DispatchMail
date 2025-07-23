@@ -234,13 +234,18 @@
 /* Compact Footer */
 .thin-modal-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
   border-top: 1px solid #30363d;
   background: #161b22;
   gap: 1rem;
   flex-shrink: 0;
+}
+
+.thin-footer-left {
+  display: flex;
+  gap: 0.75rem;
 }
 
 .thin-footer-right {
@@ -287,13 +292,33 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.thin-secondary-btn {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: #8b949e;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.thin-secondary-btn:hover:not(:disabled) {
+  background: #21262d;
+  border-color: #484f58;
+  color: #c9d1d9;
+  transform: translateY(-1px);
+}
+
 /* Disabled states */
 .thin-rule-select:disabled,
 .thin-rule-input:disabled,
 .thin-remove-btn:disabled,
 .thin-add-rule-btn:disabled,
 .thin-cancel-btn:disabled,
-.thin-save-btn:disabled {
+.thin-save-btn:disabled,
+.thin-secondary-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;

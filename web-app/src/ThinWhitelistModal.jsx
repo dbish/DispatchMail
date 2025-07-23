@@ -74,12 +74,8 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
       });
       
       if (response.ok) {
-        setMessage('Rules saved successfully!');
+        setMessage('Rules saved successfully! Changes will apply to new incoming emails.');
         onResetSuccess();
-        setReprocessingStatus({
-          is_reprocessing: true,
-          message: 'Reprocessing emails...'
-        });
       } else {
         setMessage('Failed to save rules. Please try again.');
       }
@@ -92,6 +88,17 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
         setMessage('');
       }, 5000);
     }
+  };
+
+
+
+  const applyToAllMailStub = async () => {
+    console.log('Apply to All Mail - Not yet implemented');
+    // This is a no-op for now as requested
+    setMessage('Apply to All Mail feature coming soon!');
+    setTimeout(() => {
+      setMessage('');
+    }, 3000);
   };
 
   return (
@@ -107,7 +114,7 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
         </div>
         
         <div className="thin-modal-content">
-          <p className="thin-description">Configure which emails should be imported into your AI inbox.</p>
+          <p className="thin-description">Configure which emails should be imported into your AI inbox. Changes will automatically apply to new incoming emails.</p>
           
           {message && (
             <div className={`thin-message ${message.includes('Error') || message.includes('Failed') ? 'error' : 'success'}`}>
@@ -177,6 +184,15 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
         </div>
         
         <div className="thin-modal-footer">
+          <div className="thin-footer-left">
+            <button 
+              onClick={applyToAllMailStub} 
+              disabled={isLoading || reprocessingStatus.is_reprocessing}
+              className="thin-secondary-btn"
+            >
+              {reprocessingStatus.is_reprocessing ? 'Processing...' : 'Apply to All Mail (Coming Soon)'}
+            </button>
+          </div>
           <div className="thin-footer-right">
             <button 
               onClick={onClose} 
@@ -190,7 +206,7 @@ function ThinWhitelistModal({ isOpen, onClose, onResetSuccess }) {
               disabled={isLoading || reprocessingStatus.is_reprocessing}
               className="thin-save-btn"
             >
-              {isLoading ? 'Saving...' : reprocessingStatus.is_reprocessing ? 'Reprocessing...' : 'Save & Reprocess'}
+              {isLoading ? 'Saving...' : 'Save Rules'}
             </button>
           </div>
         </div>
