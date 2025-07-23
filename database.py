@@ -313,7 +313,9 @@ class DatabaseManager:
                     final_data = {
                         'data': data.get('data', ''),
                         'last_processed': data.get('last_processed', ''),
-                        'prompt': data.get('prompt', ''),
+                        'research_prompt': data.get('research_prompt', ''),
+                        'writing_prompt': data.get('writing_prompt', ''),
+                        'processing_prompt': data.get('processing_prompt', ''),
                         'rules': data.get('rules', '')
                     }
                 print(f"Final data: {final_data}")
