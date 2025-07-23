@@ -93,10 +93,12 @@
 /* Reading Email Thread */
 .reading-email-thread {
   flex: 1 1 auto;
-  min-height: 200px;
+  min-height: 120px;
   overflow-y: auto;
   border-bottom: 1px solid #30363d;
   background: #161b22;
+  display: flex;
+  flex-direction: column;
 }
 
 .reading-email-message {
@@ -108,16 +110,17 @@
 }
 
 .reading-email-message.original {
-  background: #ffffff;
+  background: #fafbfc;
   border-radius: 8px;
   margin: 0.75rem;
   border: 1px solid #d1d9e0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .reading-message-header {
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #d1d9e0;
+  border-bottom: 1px solid #e1e4e8;
 }
 
 .reading-sender-info {
@@ -128,13 +131,13 @@
 
 .reading-sender {
   font-weight: 600;
-  color: #0969da;
+  color: #0366d6;
   font-size: 0.875rem;
 }
 
 .reading-timestamp {
   font-size: 0.75rem;
-  color: #656d76;
+  color: #6a737d;
 }
 
 .reading-message-body {
@@ -148,6 +151,7 @@
   font-family: inherit;
   max-height: none;
   overflow: visible;
+  min-height: 2em;
 }
 
 /* Reading Draft Compose Area */

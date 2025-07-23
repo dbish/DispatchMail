@@ -86,113 +86,199 @@ export default function SenderResearchModal({ isOpen, onClose, senderEmail, send
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal research-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="research-header">
-            <h3>Research Sender</h3>
-            <div className="sender-info">
-              <span className="sender-name">{senderName || 'Unknown'}</span>
-              <span className="sender-email">{senderEmail}</span>
+      <div className="modal research-modal-redesigned" onClick={(e) => e.stopPropagation()}>
+        {/* Enhanced Header with Better Information Hierarchy */}
+        <div className="research-modal-header">
+          <div className="research-header-content">
+            <div className="research-title-section">
+              <h2 className="research-title">Sender Research</h2>
+              <p className="research-subtitle">Get context and background information</p>
+            </div>
+            
+            <div className="sender-card">
+              <div className="sender-avatar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </div>
+              <div className="sender-details">
+                <div className="sender-name-primary">{senderName || 'Unknown Sender'}</div>
+                <div className="sender-email-primary">{senderEmail}</div>
+              </div>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/>
+          
+          <button className="research-close-btn" onClick={onClose} aria-label="Close research">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
             </svg>
           </button>
         </div>
         
-        <div className="modal-content">
-          <div className="research-content">
-            {!researchData && !isLoading && (
-              <div className="research-prompt">
-                <p>Click the button below to research information about this sender.</p>
+        {/* Main Content Area with Better UX Flow */}
+        <div className="research-modal-body">
+          {/* Initial State: Clear Call to Action */}
+          {!researchData && !isLoading && !error && (
+            <div className="research-empty-state">
+              <div className="empty-state-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+              </div>
+              <h3 className="empty-state-title">Research This Sender</h3>
+              <p className="empty-state-description">
+                Get background information, company details, and context about this email sender to help you make informed decisions.
+              </p>
+              <button 
+                className="research-cta-btn"
+                onClick={handleResearch}
+                disabled={isLoading}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                Start Research
+              </button>
+            </div>
+          )}
+          
+          {/* Loading State: Enhanced with Progress Indication */}
+          {isLoading && (
+            <div className="research-loading-state">
+              <div className="loading-animation">
+                <div className="loading-spinner-modern"></div>
+              </div>
+              <div className="loading-content">
+                <h3 className="loading-title">Researching Sender</h3>
+                <p className="loading-description">Gathering information from multiple sources...</p>
+                <div className="loading-steps">
+                  <div className="loading-step active">
+                    <div className="step-dot"></div>
+                    <span>Searching public records</span>
+                  </div>
+                  <div className="loading-step active">
+                    <div className="step-dot"></div>
+                    <span>Analyzing social presence</span>
+                  </div>
+                  <div className="loading-step">
+                    <div className="step-dot"></div>
+                    <span>Compiling results</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Error State: User-Friendly with Clear Next Steps */}
+          {error && (
+            <div className="research-error-state">
+              <div className="error-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+              <h3 className="error-title">Research Unavailable</h3>
+              <p className="error-description">
+                We couldn't gather information about this sender right now. This might be due to network issues or limited public information.
+              </p>
+              <div className="error-actions">
                 <button 
-                  className="research-btn primary"
+                  className="retry-btn"
                   onClick={handleResearch}
                   disabled={isLoading}
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
                   </svg>
-                  Research Sender
-                </button>
-              </div>
-            )}
-            
-            {isLoading && (
-              <div className="research-loading">
-                <div className="loading-spinner"></div>
-                <p>Researching sender...</p>
-              </div>
-            )}
-            
-            {error && (
-              <div className="research-error">
-                <p>Error: {error}</p>
-                <button 
-                  className="research-btn"
-                  onClick={handleResearch}
-                  disabled={isLoading}
-                >
                   Try Again
                 </button>
+                <button 
+                  className="skip-btn"
+                  onClick={onClose}
+                >
+                  Continue Without Research
+                </button>
               </div>
-            )}
-            
-            {researchData && (
-              <div className="research-results">
-                <div className="search-query">
-                  <span className="query-label">Search Query:</span>
-                  <span className="query-text">"{researchData.search_query}"</span>
+            </div>
+          )}
+          
+          {/* Results State: Enhanced Information Architecture */}
+          {researchData && (
+            <div className="research-results-redesigned">
+              {/* Search Query - More Subtle */}
+              <div className="search-metadata">
+                <div className="search-query-redesigned">
+                  <span className="query-label-new">Search performed:</span>
+                  <code className="query-text-new">"{researchData.search_query}"</code>
                 </div>
-                
-                <div className="summary-section">
-                  <h4>Summary</h4>
-                  <div className="summary-text">
-                    {renderTextWithLinks(researchData.summary)}
+              </div>
+              
+              {/* Primary Summary - Hero Content */}
+              <div className="summary-section-redesigned">
+                <div className="section-header">
+                  <h3 className="section-title">Research Summary</h3>
+                  <div className="section-subtitle">Key information about this sender</div>
+                </div>
+                <div className="summary-content">
+                  {renderTextWithLinks(researchData.summary)}
+                </div>
+              </div>
+              
+              {/* Sources - Enhanced Presentation */}
+              {researchData.annotations && researchData.annotations.length > 0 && (
+                <div className="sources-section-redesigned">
+                  <div className="section-header">
+                    <h3 className="section-title">Sources & References</h3>
+                    <div className="section-subtitle">{researchData.annotations.length} sources found</div>
                   </div>
-                </div>
-                
-                {researchData.annotations && researchData.annotations.length > 0 && (
-                  <div className="annotations-section">
-                    <h4>Sources</h4>
-                    <div className="annotation-tiles">
-                      {researchData.annotations.map((annotation, index) => (
-                        <button
-                          key={index}
-                          className="annotation-tile"
-                          onClick={() => handleAnnotationClick(annotation)}
-                        >
-                          <div className="tile-content">
-                            <div className="tile-domain">
-                              {new URL(annotation.url).hostname}
-                            </div>
-                            <div className="tile-title">
-                              {annotation.title || annotation.description || 'Visit source'}
-                            </div>
+                  <div className="sources-grid">
+                    {researchData.annotations.map((annotation, index) => (
+                      <button
+                        key={index}
+                        className="source-card"
+                        onClick={() => handleAnnotationClick(annotation)}
+                      >
+                        <div className="source-header">
+                          <div className="source-favicon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
                           </div>
-                          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM8 1a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 8 1Zm0 12a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 13Zm5.657-10.243a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0Zm-9.9 9.9a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0ZM15 8a.75.75 0 0 1-.75.75h-.75a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 15 8ZM3 8a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 3 8Zm10.243 5.657a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Zm-9.9-9.9a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Z"/>
-                          </svg>
-                        </button>
-                      ))}
-                    </div>
+                          <div className="source-domain">
+                            {new URL(annotation.url).hostname.replace('www.', '')}
+                          </div>
+                          <div className="external-link-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="source-content">
+                          <div className="source-title">
+                            {annotation.title || annotation.description || 'View source'}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                )}
-                
-                <div className="research-actions">
-                  <button 
-                    className="research-btn"
-                    onClick={handleResearch}
-                    disabled={isLoading}
-                  >
-                    Research Again
-                  </button>
                 </div>
+              )}
+              
+              {/* Action Bar */}
+              <div className="research-actions-redesigned">
+                <button 
+                  className="refresh-research-btn"
+                  onClick={handleResearch}
+                  disabled={isLoading}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6 6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                  </svg>
+                  Refresh Research
+                </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
