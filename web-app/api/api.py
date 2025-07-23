@@ -7,6 +7,11 @@ import os
 import sys
 import importlib.util
 
+class PromptType:
+    RESEARCH = 'research'
+    WRITING = 'writing'
+    PROCESSING = 'processing'
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import database
 database_path = os.path.join(BASE_DIR, 'database.py')
@@ -117,6 +122,13 @@ def get_user_profile():
         if metadata:
             if metadata.get('rules'):
                 inbox.whitelist.update_from_json(metadata.get('rules'))
+                prompts = {
+                    'research': metadata.get('research_prompt'),
+                    'writing': metadata.get('writing_prompt'),
+                    'processing': metadata.get('processing_prompt')
+                }
+                print(f"Loading prompts: {prompts}")
+                inbox.load_prompts(prompts)
         inbox.update_state(inbox.State.HYDRATING)
         return jsonify(profile)
     except Exception as e:
@@ -137,27 +149,34 @@ def update_user_profile():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/draft_prompt', methods=['GET'])
-def get_draft_prompt_alias():
-    """Get the draft prompt (alias for /api/prompts/draft)."""
-    try:
-        return jsonify({'prompt': 'test'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.route('/api/custom_prompt', methods=['GET', 'POST'])
+def custom_prompt():
+    print('custom_prompt')
+    print(request.args)
 
-@app.route('/api/prompt', methods=['GET', 'POST'])
-def get_prompt_endpoint():
-    """Get the reading prompt (alias for /api/prompts/reading)."""
+    #3 types of prompts, type defined in the query params
+    type_arg = request.args.get('type')
+    prompt_type = PromptType.PROCESSING
+    if type_arg:
+        if type_arg == PromptType.RESEARCH:
+            prompt_type = PromptType.RESEARCH
+        elif type_arg == PromptType.WRITING:
+            prompt_type = PromptType.WRITING
+        elif type_arg == PromptType.PROCESSING:
+            prompt_type = PromptType.PROCESSING
+    
     if request.method == 'POST':
         data = request.json
-        print(f"Received prompt: {data}")
-        inbox.agent.instructions = data['prompt']
+        print(f"Received {prompt_type} prompt: {data}")
+        #save the prompt to the database
+        inbox.save_prompt(prompt_type, data['prompt'])
+        print('saved prompt')
         return jsonify({'success': True})
     else:
-        try:
-            return jsonify({'prompt': inbox.agent.instructions})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        #get the prompt from the database
+        prompt = inbox.get_prompt(prompt_type)
+        print(f"Getting {prompt_type} prompt: {prompt}")
+        return jsonify({'prompt': prompt})
 
 @app.route('/api/whitelist', methods=['GET', 'POST'])
 def get_whitelist():
@@ -185,6 +204,7 @@ def research_sender():
         data = request.get_json()
         sender_email = data.get('sender_email')
         sender_name = data.get('sender_name', '')
+        research_prompt = inbox.get_prompt(PromptType.RESEARCH)
         
         if not sender_email:
             return jsonify({'error': 'Sender email required'}), 400

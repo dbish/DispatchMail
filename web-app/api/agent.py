@@ -37,6 +37,10 @@ DEFAULT_RESPONSE_PROMPT = """
 Write a concise but friendly response.
 """
 
+DEFAULT_RESEARCH_PROMPT = """
+You are an expert people researcher. You'll be provided an email and your goal is to create a snippet to summarize information about the sender. you can use the domain to understand the organization if it isn't a large email provider, and you can use web search to get info on them.
+"""
+
 DEFAULT_TOOLS = [
     {
       "type": "function",
@@ -108,12 +112,13 @@ class Agent:
             raise ValueError(f"Invalid client type: {client_type}")
         
         self.instructions = DEFAULT_INSTRUCTIONS
-        self.response_prompt = DEFAULT_RESPONSE_PROMPT
+        self.writing_prompt = DEFAULT_RESPONSE_PROMPT
+        self.research_prompt = DEFAULT_RESEARCH_PROMPT
 
     async def process_email(self, email):
         #get the email content
         email_content = email.body
-        prompt = PROMPT_TEMPLATE.substitute(instructions=self.instructions, email=email_content, response_prompt=self.response_prompt)
+        prompt = PROMPT_TEMPLATE.substitute(instructions=self.instructions, email=email_content, response_prompt=self.writing_prompt)
 
         response = await self.get_openai_response(prompt)
         email.processed = True

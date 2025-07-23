@@ -393,6 +393,33 @@ class Inbox:
         whitelist_to_put = json.dumps(whitelist_to_put)
         self.db.put_metadata(self.user, {'rules': whitelist_to_put})
 
+    def get_prompt(self, prompt_type):
+        if prompt_type == 'research':
+            return self.agent.research_prompt
+        elif prompt_type == 'writing':
+            return self.agent.writing_prompt
+        else:
+            return self.agent.instructions
+    
+    def save_prompt(self, prompt_type, prompt):
+        if prompt_type == 'research':
+            self.agent.research_prompt = prompt
+        elif prompt_type == 'writing':
+            self.agent.writing_prompt = prompt
+        else:
+            self.agent.instructions = prompt
+        print(f"Saving {prompt_type} prompt: {prompt} to db")
+        self.db.save_prompt(self.user, prompt_type, prompt)
+
+    def load_prompts(self, prompts):
+        print(f"Loading prompts: {prompts}")
+        if 'research' in prompts and prompts['research']:
+            self.agent.research_prompt = prompts['research']
+        if 'writing' in prompts and prompts['writing']:
+            self.agent.writing_prompt = prompts['writing']
+        if 'processing' in prompts and prompts['processing']:
+            self.agent.instructions = prompts['processing']
+
     def clear_all_processed(self):
         #reprocess all emails
         for email_id in self.emails:

@@ -15,7 +15,7 @@ export default function EmailDraftModal({ isOpen, onClose, email, onSend, onDele
     if (email && isOpen) {
       setEmailDraft(email.draft || '');
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
-      fetch('/api/draft_prompt')
+      fetch('/api/custom_prompt?type=writing')
         .then((res) => res.json())
         .then((data) => setDraftPrompt(data.prompt || ''))
         .catch(() => {});
@@ -28,7 +28,7 @@ export default function EmailDraftModal({ isOpen, onClose, email, onSend, onDele
     setIsRerunning(true);
     try {
       if (draftPrompt && draftPrompt.trim()) {
-        await fetch('/api/draft_prompt', {
+        await fetch('/api/custom_prompt?type=writing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: draftPrompt }),

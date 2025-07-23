@@ -296,7 +296,7 @@ function App() {
 
   useEffect(() => {
     // Load the reading system prompt
-    fetch('/api/prompt')
+    fetch('/api/custom_prompt?type=processing')
       .then((res) => res.json())
       .then((data) => setSystemPrompt(data.prompt || ''))
       .catch(() => {});
@@ -442,7 +442,7 @@ function App() {
 
   const saveSystemPrompt = async () => {
     try {
-      const response = await fetch('/api/prompt', {
+      const response = await fetch('/api/custom_prompt?type=processing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: systemPrompt }),

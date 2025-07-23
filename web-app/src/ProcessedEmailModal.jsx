@@ -17,12 +17,12 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
       setEmailDraft(email.drafted_response || '');
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
       
-      fetch('/api/prompt')
+      fetch('/api/custom_prompt?type=processing')
         .then((res) => res.json())
         .then((data) => setSystemPrompt(data.prompt || ''))
         .catch(() => setSystemPrompt(''));
         
-      fetch('/api/draft_prompt')
+      fetch('/api/custom_prompt?type=writing')
         .then((res) => res.json())
         .then((data) => setDraftPrompt(data.prompt || ''))
         .catch(() => setDraftPrompt(''));

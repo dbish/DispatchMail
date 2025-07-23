@@ -19,7 +19,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
       setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
       
       // Fetch current draft prompt
-      fetch('/api/draft_prompt')
+      fetch('/api/custom_prompt?type=writing')
         .then((res) => res.json())
         .then((data) => setDraftPrompt(data.prompt || ''))
         .catch(() => {});
@@ -37,7 +37,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
       // Only update draft prompt if it's not empty
       if (draftPrompt && draftPrompt.trim()) {
         requests.push(
-          fetch('/api/draft_prompt', {
+          fetch('/api/custom_prompt?type=writing', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt: draftPrompt }),

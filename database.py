@@ -46,14 +46,16 @@ class DatabaseManager:
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
+
             # Create metadata table
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS metadata (
                     user TEXT PRIMARY KEY,
                     data TEXT,
                     last_processed TEXT,
-                    prompt TEXT,
+                    research_prompt TEXT,
+                    writing_prompt TEXT,
+                    processing_prompt TEXT,
                     rules TEXT,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -275,6 +277,13 @@ class DatabaseManager:
             print(f"Error getting metadata: {e}")
             return None
     
+    def save_prompt(self, user: str, prompt_type: str, prompt: str) -> bool:
+        """Store a prompt for a user."""
+        print(f"Saving {prompt_type} prompt: {prompt} to db for user {user}")
+        field_name = f"{prompt_type}_prompt"
+        self.put_metadata(user, {field_name: prompt})
+        print('saved prompt')
+
     def put_metadata(self, user: str, data: Dict[str, Any]) -> bool:
         """Store metadata for a user."""
         try:
@@ -291,8 +300,10 @@ class DatabaseManager:
                     existing_data = {
                         'data': existing[1] or '',
                         'last_processed': existing[2] or '',
-                        'prompt': existing[3] or '',
-                        'rules': existing[4] or ''
+                        'research_prompt': existing[3] or '',
+                        'writing_prompt': existing[4] or '',
+                        'processing_prompt': existing[5] or '',
+                        'rules': existing[6] or ''
                     }
                     # Update only the fields provided in the data parameter
                     existing_data.update(data)
@@ -305,16 +316,20 @@ class DatabaseManager:
                         'prompt': data.get('prompt', ''),
                         'rules': data.get('rules', '')
                     }
-                
+                print(f"Final data: {final_data}")
+                print(f"User: {user}")
+
                 cursor.execute('''
                     INSERT OR REPLACE INTO metadata 
-                    (user, data, last_processed, prompt, rules, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (user, data, last_processed, research_prompt, writing_prompt, processing_prompt, rules, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     user,
                     final_data['data'],
                     final_data['last_processed'],
-                    final_data['prompt'],
+                    final_data['research_prompt'],
+                    final_data['writing_prompt'],
+                    final_data['processing_prompt'],
                     final_data['rules'],
                     datetime.now().isoformat()
                 ))

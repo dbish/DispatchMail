@@ -8,7 +8,7 @@ function ThinDraftingSettingsModal({ isOpen, onClose, onResetSuccess }) {
 
   useEffect(() => {
     if (!isOpen) return;
-    fetch('/api/draft_prompt')
+    fetch('/api/custom_prompt?type=writing')
       .then((res) => res.json())
       .then((data) => {
         setDraftPrompt(data.prompt || '');
@@ -23,7 +23,7 @@ function ThinDraftingSettingsModal({ isOpen, onClose, onResetSuccess }) {
     setMessage('');
     
     try {
-      const response = await fetch('/api/draft_prompt', {
+      const response = await fetch('/api/custom_prompt?type=writing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: draftPrompt }),
