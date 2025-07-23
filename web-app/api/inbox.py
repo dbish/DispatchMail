@@ -356,9 +356,11 @@ class Inbox:
         #create the next batch of emails to process
         if len(self.unprocessed_message_ids) == 0:
             return {"batch": [], "state": "done"}
-        batch = self.unprocessed_message_ids[:self.BATCH_SIZE]
+
+        #always batch the last self.BATCH_SIZE emails instead of the first
+        batch = self.unprocessed_message_ids[-self.BATCH_SIZE:]
         await self.process_batch(batch)
-        self.unprocessed_message_ids = self.unprocessed_message_ids[self.BATCH_SIZE:]
+        self.unprocessed_message_ids = self.unprocessed_message_ids[:-self.BATCH_SIZE]
         email_data = []
         for email_id in batch:
             email = self.emails[email_id]
