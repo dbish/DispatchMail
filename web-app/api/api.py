@@ -25,13 +25,19 @@ def before_first_request():
     inbox = Inbox()
     inbox.retrieve_function = retrieve_emails
     inbox.send_function = send_email
+    inbox.db = db
 
 with app.app_context():
     before_first_request()
 
 @app.route('/api/get_updates', methods=['GET'])
 def get_updates():
-    result = asyncio.run(inbox.update())
+
+    print(inbox.state)
+    print('getting updates')
+    inbox.update_state(inbox.State.UPDATING)
+    print('updates done')
+
     return jsonify([email.to_dict() for email in inbox.emails.values()])
 
 @app.route('/api/users', methods=['GET'])
@@ -46,7 +52,6 @@ def get_users():
 
 @app.route('/api/emails', methods=['GET'])
 def get_emails():
-    print(len(inbox.emails))
     return jsonify([email.to_dict() for email in inbox.emails.values()])
 
 @app.route('/api/process_emails', methods=['GET'])
@@ -54,7 +59,8 @@ def process_emails():
     paging = request.args.get('paging')
     if paging == 'false':
         inbox.clear_all_processed()
-    return jsonify(asyncio.run(inbox.continue_processing()))
+    result = asyncio.run(inbox.continue_processing())
+    return jsonify(result)
 
 @app.route('/api/emails/<message_id>', methods=['GET'])
 def get_email(message_id):
@@ -104,7 +110,11 @@ def get_user_profile():
             'last_processed': metadata.get('last_processed') if metadata else None,
             'created_at': user.get('created_at')
         }
-        
+
+        if metadata:
+            if metadata.get('rules'):
+                inbox.whitelist.update_from_json(metadata.get('rules'))
+        inbox.update_state(inbox.State.HYDRATING)
         return jsonify(profile)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -152,6 +162,7 @@ def get_whitelist():
         data = request.json
         print(f"Received whitelist: {data}")
         inbox.whitelist.update_from_json(data)
+        inbox.save_whitelist()
         return jsonify({'success': True})
     else:
         print(len(inbox.whitelist.filters))

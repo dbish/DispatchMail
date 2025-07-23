@@ -4,9 +4,10 @@ from agent import Agent
 import asyncio
 import json
 import uuid
+import asyncio
 
 class Email:
-    def __init__(self, id, subject, body, full_body, html, from_, to, date):
+    def __init__(self, id, subject, body, full_body='', html='', from_='', to='', date='', processed=False, state=[], drafted_response=None):
         self.id = id
         self.subject = subject
         self.body = body
@@ -15,9 +16,9 @@ class Email:
         self.from_ = from_
         self.to = to
         self.date = date
-        self.processed = False
-        self.state = [] #list of states to show
-        self.drafted_response = None
+        self.processed = processed
+        self.state = state #list of states to show
+        self.drafted_response = drafted_response
         self.sent_response = None
         self.sent_date = None
         self.sent_to = None
@@ -29,8 +30,6 @@ class Email:
         pass
 
     def __str__(self):
-        #create a nice string representation of the email
-        #make it look like a gmail email in a terminal format
         email_str = f'''
         From: {self.from_}
         To: {self.to}
@@ -62,6 +61,26 @@ class Email:
             "drafted_response": self.drafted_response,
         }
 
+    def to_db_dict(self):
+        return {
+            "message_id": self.id,
+            "subject": self.subject,
+            "body": self.body,
+            "full_body": self.full_body or '',
+            "html": json.dumps(self.html) or '',
+            "from_": json.dumps(self.from_) or '',
+            "to_": json.dumps(self.to) or '',
+            "date": self.date or '',
+            "processed": self.processed,
+            "state": json.dumps(self.state),
+            "drafted_response": self.drafted_response or '',
+            "sent_response": self.sent_response or '',
+            "sent_date": self.sent_date or '',
+            "sent_to": self.sent_to or '',
+            "sent_subject": self.sent_subject or '',
+            "sent_body": self.sent_body or '',
+        }
+
 class FilterList:
     def __init__(self):
         self.filters = {}
@@ -84,11 +103,19 @@ class FilterList:
         return any(results)
     
     def update_from_json(self, json_data):
+        print('updating whitelist from json')
         #update the whitelist from a json object
         self.filters = {}
-        rules = json_data['rules']
+        #json_data is a string, so we need to load it
+        if isinstance(json_data, str):
+            rules = json.loads(json_data)['rules']
+        else:
+            rules = json_data['rules']
+        print(rules)
         if rules:
             for rule in rules:
+                #trim whitespace from any values
+                rule['value'] = rule['value'].strip()
                 if rule['type'] == 'email':
                     self.create_from_filter(rule['value'])
                 elif rule['type'] == 'subject':
@@ -96,6 +123,7 @@ class FilterList:
                 elif rule['type'] == 'classification':
                     self.create_ai_filter(rule['value'])
         print(f"Updating whitelist from json: {json_data}")
+
 
     def create_from_filter(self, from_filter):
         async def filter_func(email):
@@ -183,6 +211,16 @@ class Filter:
     
 
 class Inbox:
+
+    class State:
+        UNINITIALIZED = 'uninitialized'
+        HYDRATING = 'hydrating'
+        HYDRATED = 'hydrated'
+        UPDATING = 'updating'
+        UPDATED = 'updated'
+        PROCESSING = 'processing'
+        DONE = 'done'
+
     def __init__(self):
         self.LOOKBACK_DAYS = 1
         self.BATCH_SIZE = 5
@@ -197,6 +235,61 @@ class Inbox:
         self.user = None
         self.app_password = None
         self.agent = Agent("openai")
+        self.state = self.State.UNINITIALIZED
+        self.db = None
+
+    def update_state(self, new_state):
+        print(f"Updating state from {self.state} to {new_state}")
+        if new_state == self.State.HYDRATING:
+            if self.state == self.State.UNINITIALIZED:
+                self.hydrate()
+        elif new_state == self.State.HYDRATED:
+            self.state = self.State.HYDRATED
+        elif new_state == self.State.UPDATING:
+            if self.state != self.State.UPDATING and self.state != self.State.HYDRATING and self.state != self.State.UNINITIALIZED:
+                asyncio.run(self.update())
+            else:
+                print('already updating')
+        elif new_state == self.State.UPDATED:
+            self.state = self.State.UPDATED
+        elif new_state == self.State.PROCESSING:
+            self.state = self.State.PROCESSING
+        elif new_state == self.State.DONE:
+            self.state = self.State.DONE
+    
+
+    def hydrate(self):
+        print('hydrating inbox')
+        #in hydrating state, we load all emails from the db
+        #this is a reset of the local inbox, pulling from save state
+        self.state = self.State.HYDRATING
+        self.emails = {}
+        self.unprocessed_message_ids = []
+        self.last_retrieved_date = None
+        print(f"Scanning emails for {self.user}")
+        results = self.db.scan_emails({'account': self.user})
+        print(f"Found {len(results)} emails")
+        for email in results:
+            try:
+                self.emails[email['message_id']] = Email(
+                    id=email['message_id'],
+                    subject=email['subject'],
+                    body=email['body'],
+                    full_body=email['full_body'],
+                    html=json.loads(email['html']),
+                    from_=json.loads(email['from_']),
+                    to=json.loads(email['to_']),
+                    date=email['date'],
+                    processed=email['processed'],
+                    state=json.loads(email['state']),
+                    drafted_response=email['drafted_response'],
+                    )
+                if not email['processed']:
+                    self.unprocessed_message_ids.append(email['message_id'])
+            except Exception as e:
+                print(f"Error adding email to inbox: {e}")
+                print(email)
+        self.update_state(self.State.HYDRATED)
 
     def update_writing_prompt(self, prompt):
         self.agent.response_prompt = prompt
@@ -211,7 +304,8 @@ class Inbox:
         await self.update()
 
     async def update(self):
-        print('Updating')
+        print('Updating update')
+        self.state = self.State.UPDATING
         #get new emails (get inputs/changes)
         if self.retrieve_function is None:
             raise ValueError("retrieve_function is not set")
@@ -235,8 +329,19 @@ class Inbox:
         # Only update last_retrieved_date if we have emails
         if self.emails:
             self.last_retrieved_date = self.get_latest_email().date
-        print(f"Found {num_new_emails} new emails")
+        self.save_emails()
+        self.update_state(self.State.UPDATED)
         return num_new_emails
+
+    def save_emails(self):
+        emails_to_put = [email.to_db_dict() for email in self.emails.values()]
+        if len(emails_to_put) > 0:
+            self.db.bulk_put_emails(emails_to_put, self.user)
+
+    def save_whitelist(self):
+        whitelist_to_put = self.whitelist.to_json()
+        whitelist_to_put = json.dumps(whitelist_to_put)
+        self.db.put_metadata(self.user, {'rules': whitelist_to_put})
 
     def clear_all_processed(self):
         #reprocess all emails
@@ -283,3 +388,25 @@ class Inbox:
             email = self.emails[email_id]
             tasks.append(self.agent.process_email(email))
         await asyncio.gather(*tasks)
+        print('saving emails')
+        self.save_emails()
+        print('emails saved')
+
+    def bulk_load_emails(self, emails):
+        #bulk load emails into the inbox
+        for email in emails:
+            self.emails[email['message_id']] = Email(
+                id=email['message_id'],
+                subject=email['subject'] or '',
+                body=email['body'] or '',
+                full_body=email['full_body'] or '',
+                html=email['html'] or '',
+                from_=email['from_sender'] or '',
+                to=email['to_recipients'] or '',
+                date=email['date'] or '',
+                processed=email['processed'] or False,
+                state=email['action'] or [],
+                drafted_response=email['draft'] or None,
+                llm_prompt=email['llm_prompt'] or '',
+                processing=email['processing'] or False
+            )

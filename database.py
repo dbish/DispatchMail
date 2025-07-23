@@ -27,15 +27,21 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS emails (
                     message_id TEXT PRIMARY KEY,
                     subject TEXT,
-                    to_recipients TEXT,
-                    from_sender TEXT,
                     body TEXT,
+                    full_body TEXT,
+                    html TEXT,
+                    from_ TEXT,
+                    to_ TEXT,
                     date TEXT,
                     processed BOOLEAN DEFAULT FALSE,
-                    action TEXT DEFAULT '',
-                    draft TEXT DEFAULT '',
+                    state TEXT,
+                    drafted_response TEXT,
+                    sent_response TEXT,
+                    sent_date TEXT,
+                    sent_to TEXT,
+                    sent_subject TEXT,
+                    sent_body TEXT,
                     account TEXT,
-                    llm_prompt TEXT DEFAULT '',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -63,29 +69,7 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            
-            # Migration: Add updated_at column to emails table if it doesn't exist
-            try:
-                cursor.execute('ALTER TABLE emails ADD COLUMN updated_at TIMESTAMP')
-                print("Added updated_at column to emails table")
-            except sqlite3.OperationalError as e:
-                if "duplicate column name" in str(e):
-                    # Column already exists, this is fine
-                    pass
-                else:
-                    print(f"Error adding updated_at column: {e}")
-            
-            # Migration: Add processing column to emails table if it doesn't exist
-            try:
-                cursor.execute('ALTER TABLE emails ADD COLUMN processing BOOLEAN DEFAULT FALSE')
-                print("Added processing column to emails table")
-            except sqlite3.OperationalError as e:
-                if "duplicate column name" in str(e):
-                    # Column already exists, this is fine
-                    pass
-                else:
-                    print(f"Error adding processing column: {e}")
-            
+                        
             conn.commit()
             conn.close()
     
@@ -100,8 +84,18 @@ class DatabaseManager:
             d[col[0]] = row[idx]
         return d
 
+    def reset_emails(self, user: str):
+        """Reset all emails for a user."""
+        with self.lock:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM emails WHERE account = ?', (user,))
+            conn.commit()
+            conn.close()
+
+
     # Email operations
-    def put_email(self, email_data: Dict[str, Any]) -> bool:
+    def put_email(self, email_data: Dict[str, Any], account: str) -> bool:
         """Store an email in the database."""
         try:
             with self.lock:
@@ -110,21 +104,26 @@ class DatabaseManager:
                 
                 cursor.execute('''
                     INSERT OR REPLACE INTO emails 
-                    (message_id, subject, to_recipients, from_sender, body, date, processed, action, draft, account, llm_prompt, processing)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (message_id, subject, body, full_body, html, from_, to, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, account)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     email_data.get('message_id', ''),
                     email_data.get('subject', ''),
-                    email_data.get('to', ''),
-                    email_data.get('from', ''),
                     email_data.get('body', ''),
+                    email_data.get('full_body', ''),
+                    email_data.get('html', ''),
+                    email_data.get('from', ''),
+                    email_data.get('to', ''),
                     email_data.get('date', ''),
                     email_data.get('processed', False),
-                    email_data.get('action', ''),
-                    email_data.get('draft', ''),
-                    email_data.get('account', ''),
-                    email_data.get('llm_prompt', ''),
-                    email_data.get('processing', False)
+                    email_data.get('state', ''),
+                    email_data.get('drafted_response', ''),
+                    email_data.get('sent_response', ''),
+                    email_data.get('sent_date', ''),
+                    email_data.get('sent_to', ''),
+                    email_data.get('sent_subject', ''),
+                    email_data.get('sent_body', ''),
+                    account
                 ))
                 
                 conn.commit()
@@ -132,6 +131,50 @@ class DatabaseManager:
                 return True
         except Exception as e:
             print(f"Error storing email: {e}")
+            return False
+
+    def bulk_put_emails(self, emails: List[Dict[str, Any]], account: str) -> bool:
+        """Bulk store emails in the database."""
+        try:
+            with self.lock:
+                conn = self.get_connection()
+                cursor = conn.cursor()
+
+                # Create a list of tuples for bulk insertion
+                values = []
+                for email in emails:
+                    values.append((
+                        email['message_id'] or '',
+                        email['subject'] or '',
+                        email['body'] or '',
+                        email['full_body'] or '',
+                        email['html'] or '',
+                        email['from_'] or '',
+                        email['to_'] or '',
+                        email['date'] or '',
+                        email['processed'] or False,
+                        email['state'] or '',
+                        email['drafted_response'] or '',
+                        email['sent_response'] or '',
+                        email['sent_date'] or '',
+                        email['sent_to'] or '',
+                        email['sent_subject'] or '',
+                        email['sent_body'] or '',
+                        account
+                    ))
+                
+                # Execute the bulk insert
+                cursor.executemany('''
+                    INSERT OR REPLACE INTO emails 
+                    (message_id, subject, body, full_body, html, from_, to_, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, account)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', values)
+                
+                conn.commit()
+                conn.close()
+                return True
+        except Exception as e:
+            print(f"Error storing emails: {e}")
             return False
     
     def get_email(self, message_id: str) -> Optional[Dict[str, Any]]:
@@ -268,7 +311,7 @@ class DatabaseManager:
             return False
     
     # Users operations
-    def get_users(self) -> List[Dict[str, Any]]:
+    def get_users(self) -> List[Dict[str, Any]]: 
         """Get all users."""
         try:
             with self.lock:
@@ -276,7 +319,7 @@ class DatabaseManager:
                 conn.row_factory = self.dict_factory
                 cursor = conn.cursor()
                 
-                cursor.execute('SELECT * FROM users WHERE active = TRUE')
+                cursor.execute('SELECT * FROM users')
                 results = cursor.fetchall()
                 conn.close()
                 return results
