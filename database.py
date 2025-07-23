@@ -8,9 +8,16 @@ import threading
 class DatabaseManager:
     def __init__(self, db_path: str = None):
         if db_path is None:
-            # Import here to avoid circular imports
-            from config_reader import DATABASE_PATH
-            db_path = DATABASE_PATH
+            try:
+                # Try to import config_reader (when running from API context)
+                import sys
+                import os
+                sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web-app', 'api'))
+                from config_reader import DATABASE_PATH
+                db_path = DATABASE_PATH
+            except ImportError:
+                # Fallback for setup script and other contexts
+                db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dmail.db')
         
         self.db_path = db_path
         self.lock = threading.Lock()

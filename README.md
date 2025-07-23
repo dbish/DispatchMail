@@ -1,6 +1,6 @@
 # DispatchMail - Local Email AI Assistant
 
-dMail is an AI-powered email assistant that helps you manage your inbox locally using SQLite. It monitors your email, processes it with AI, and provides a web interface for managing drafts and responses.
+DispatchMail is an AI-powered email assistant that helps you manage your inbox locally using SQLite. It monitors your email, processes it with AI, and provides a web interface for managing drafts and responses.
 
 ## Features
 
@@ -19,7 +19,7 @@ dMail is an AI-powered email assistant that helps you manage your inbox locally 
 - Python 3.8+
 - Node.js 16+ (for web interface)
 - Gmail account with 2FA enabled
-- OpenAI API key (optional, for AI features)
+- OpenAI API key (required for AI features)
 
 ### Installation
 
@@ -41,25 +41,25 @@ dMail is an AI-powered email assistant that helps you manage your inbox locally 
    - Guide you through account setup
 
 3. Configure your credentials:
-   - Edit `daemon-service/secrets.py` with your email credentials
+   - Edit `web-app/api/secrets.py` with your OpenAI API key
    - For Gmail, create an App Password: https://support.google.com/mail/answer/185833
 
 4. Start the services:
    ```bash
-   # Terminal 1: Start the email daemon
-   cd daemon-service
-   python observer.py
+   # Option A: Use the startup script (recommended)
+   python start.py
    
-   # Terminal 2: Start the web API
+   # Option B: Start manually
+   # Terminal 1: Start the web API
    cd web-app
    python api/api.py
    
-   # Terminal 3: Start the frontend
+   # Terminal 2: Start the frontend (in another terminal)
    cd web-app
    npm run dev
    ```
 
-5. Open http://localhost:5173 in your browser
+5. Open http://localhost:5173 in your browser and set up your email account
 
 ## Manual Setup
 
@@ -69,38 +69,32 @@ If you prefer to set up manually:
 
 ```bash
 # Backend dependencies
-cd daemon-service
+cd web-app/api
 pip install -r requirements.txt
 
 # Frontend dependencies
-cd ../web-app
+cd ../
 npm install
 ```
 
 ### 2. Configure Secrets
 
-Create `daemon-service/secrets.py`:
+Create `web-app/api/secrets.py`:
 ```python
-# IMAP Configuration
-HOST = 'imap.gmail.com'
-USER = 'your-email@gmail.com'
-PASSWORD = 'your-app-password'  # Gmail App Password
-
-# OpenAI API Key (optional)
+# OpenAI API Key
 OPENAI_API_KEY = 'your-openai-api-key'
 ```
 
 ### 3. Initialize Database
 
 ```bash
-cd daemon-service
 python -c "from database import db; print('Database initialized!')"
 ```
 
 ### 4. Add User Account
 
+You can add user accounts through the web interface or programmatically:
 ```bash
-cd daemon-service
 python -c "
 from database import db
 db.put_user('your-email@gmail.com', 'imap.gmail.com', 'your-app-password')
@@ -116,7 +110,7 @@ For Gmail accounts, you need:
 2. **Generate App Password**: 
    - Go to Google Account > Security > App passwords
    - Generate a new app password for "Mail"
-   - Use this password in your `secrets.py` file
+   - Use this password when setting up your account in the web interface
 
 ## Configuration
 
@@ -154,11 +148,14 @@ The web API provides REST endpoints for:
 - `GET/POST /api/prompts/draft` - Manage draft prompt
 - `GET/POST /api/whitelist` - Manage whitelist rules
 - `GET/POST /api/users` - Manage user accounts
+- `GET /api/process_emails` - Process unprocessed emails
+- `GET /api/get_updates` - Retrieve new emails from server
 
 ## Security Notes
 
 - All data is stored locally in SQLite
-- Email credentials are stored in plain text in `secrets.py`
+- Email credentials are stored in the database
+- OpenAI API key is stored in `web-app/api/secrets.py`
 - Consider using environment variables for production deployments
 - The application binds to `0.0.0.0:5000` by default
 
@@ -179,12 +176,19 @@ The web API provides REST endpoints for:
    - Frontend runs on port 5173
    - Make sure these ports are available
 
+4. **OpenAI API Errors**:
+   - Verify your API key is correct in `web-app/api/secrets.py`
+   - Check your OpenAI account has sufficient credits
+
 ### Debug Mode
 
-Run with debug output:
+Check logs in the `logs/` directory:
 ```bash
-cd daemon-service
-python observer.py --debug
+# View API logs
+tail -f logs/api.log
+
+# View frontend logs
+tail -f logs/frontend.log
 ```
 
 ## Development
@@ -193,24 +197,34 @@ python observer.py --debug
 
 ```
 dMail/
-├── daemon-service/          # Backend email processing
-│   ├── database.py         # SQLite database interface
-│   ├── observer.py         # Email monitoring daemon
-│   ├── ai_processor.py     # AI processing logic
-│   ├── config_reader.py    # Configuration management
-│   ├── filter_utils.py     # Email filtering
-│   └── secrets.py          # Credentials (create from sample)
+├── database.py             # SQLite database interface
+├── start.py                # Service startup script
+├── setup.py                # Setup script
 ├── web-app/                # Frontend and API
-│   ├── api/api.py          # Flask web API
+│   ├── api/
+│   │   ├── api.py          # Flask web API
+│   │   ├── inbox.py        # Email processing logic
+│   │   ├── agent.py        # AI processing
+│   │   ├── gmail.py        # Gmail IMAP integration
+│   │   ├── secrets.py      # API keys and credentials
+│   │   └── requirements.txt # Python dependencies
 │   ├── src/                # React frontend
 │   └── package.json        # Node.js dependencies
-└── setup.py                # Setup script
+└── logs/                   # Application logs
 ```
+
+### How It Works
+
+1. **Email Retrieval**: The API connects to your Gmail via IMAP to fetch new emails
+2. **Filtering**: Emails are filtered based on whitelist rules you configure
+3. **AI Processing**: Filtered emails are processed by OpenAI GPT for classification and draft generation
+4. **Web Interface**: The React frontend provides a modern UI for managing emails and drafts
+5. **Local Storage**: All data is stored locally in SQLite for privacy
 
 ### Adding Features
 
-1. **New AI Prompts**: Add to `ai_processor.py`
-2. **New Filters**: Extend `filter_utils.py`
+1. **New AI Prompts**: Modify `web-app/api/agent.py`
+2. **New Filters**: Extend `web-app/api/inbox.py`
 3. **New API Endpoints**: Add to `web-app/api/api.py`
 4. **Frontend Changes**: Modify files in `web-app/src/`
 
@@ -223,4 +237,5 @@ MIT License - see LICENSE file for details
 For issues and questions:
 1. Check the troubleshooting section above
 2. Review the console logs for error messages
-3. Open an issue in the repository
+3. Check the logs in the `logs/` directory
+4. Open an issue in the repository

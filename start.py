@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-dMail Startup Script
-This script starts all dMail services (daemon, API, and frontend) in the background.
+DispatchMail Startup Script
+This script starts all DispatchMail services (API + frontend) in the background.
 """
 
 import os
@@ -62,52 +62,6 @@ def log_output(process, log_file, service_name):
     except Exception as e:
         print(f"❌ Error logging {service_name}: {e}")
 
-def start_daemon():
-    """Start the email daemon service."""
-    print("🔄 Starting email daemon...")
-    daemon_dir = Path("daemon-service")
-    if not daemon_dir.exists():
-        print("❌ daemon-service directory not found")
-        return None
-    
-    # Create logs directory
-    logs_dir = Path("logs")
-    logs_dir.mkdir(exist_ok=True)
-    
-    try:
-        # Create log file
-        log_file = open(logs_dir / "daemon.log", "w")
-        log_files.append(log_file)
-        
-        process = subprocess.Popen(
-            [sys.executable, "observer.py"],
-            cwd=daemon_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            universal_newlines=True
-        )
-        processes.append(process)
-        
-        # Start logging thread
-        log_thread = threading.Thread(target=log_output, args=(process, log_file, "Daemon"))
-        log_thread.daemon = True
-        log_thread.start()
-        
-        time.sleep(2)  # Give it time to start
-        
-        if process.poll() is None:
-            print("✅ Email daemon started")
-            print(f"📝 Daemon logs: {log_file.name}")
-            return process
-        else:
-            print("❌ Email daemon failed to start")
-            return None
-    except Exception as e:
-        print(f"❌ Failed to start email daemon: {e}")
-        return None
-
 def start_api():
     """Start the web API service."""
     print("🌐 Starting web API...")
@@ -138,7 +92,6 @@ def start_api():
         
         # Start logging thread
         log_thread = threading.Thread(target=log_output, args=(process, log_file, "API"))
-        log_thread.daemon = True
         log_thread.start()
         
         time.sleep(2)  # Give it time to start
@@ -210,13 +163,22 @@ def check_prerequisites():
     print("🔍 Checking prerequisites...")
     
     # Check if secrets.py exists
-    secrets_file = Path("daemon-service/secrets.py")
+    secrets_file = Path("web-app/api/secrets.py")
     if not secrets_file.exists():
-        print("❌ Configuration file missing: daemon-service/secrets.py")
+        print("❌ Configuration file missing: web-app/api/secrets.py")
         print("   Run 'python setup.py' to create it")
         return False
     
-    # Check if database exists (will be created if it doesn't)
+    # Check if database.py exists
+    if not Path("database.py").exists():
+        print("❌ Database module missing: database.py")
+        return False
+    
+    # Check if web-app directory exists
+    if not Path("web-app").exists():
+        print("❌ Web app directory missing: web-app")
+        return False
+    
     print("✅ Prerequisites check passed")
     return True
 
@@ -234,14 +196,11 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     # Start all services
-    daemon_process = start_daemon()
     api_process = start_api()
     frontend_process = start_frontend()
     
     # Check if all services started successfully
     failed_services = []
-    if not daemon_process:
-        failed_services.append("Email daemon")
     if not api_process:
         failed_services.append("Web API")
     if not frontend_process:
@@ -260,7 +219,6 @@ def main():
     for log_file in log_files:
         print(f"   - {log_file.name}")
     print("\n💡 To view logs in real-time:")
-    print("   tail -f logs/daemon.log")
     print("   tail -f logs/api.log")
     print("   tail -f logs/frontend.log")
     print("\nPress Ctrl+C to stop all services")
@@ -273,9 +231,9 @@ def main():
             # Check if any process has died
             for i, process in enumerate(processes):
                 if process.poll() is not None:
-                    service_names = ["Email daemon", "Web API", "Frontend"]
+                    service_names = ["Web API", "Frontend"]
                     print(f"\n❌ {service_names[i]} has stopped unexpectedly")
-                    print(f"   Check logs/{['daemon', 'api', 'frontend'][i]}.log for details")
+                    print(f"   Check logs/{['api', 'frontend'][i]}.log for details")
                     signal_handler(None, None)
                     sys.exit(1)
                     
