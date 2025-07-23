@@ -559,6 +559,26 @@
   color: #c9d1d9;
 }
 
+/* Prompt loading state */
+.prompt-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: #8b949e;
+  font-size: 0.8rem;
+}
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #30363d;
+  border-top: 2px solid #58a6ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
 /* Loading State */
 .research-loading-state {
   display: flex;
