@@ -215,7 +215,7 @@ function App() {
       }
     };
 
-    const checkForUpdates = async () => {
+    const _checkForUpdates = async () => {
       console.log('Checking for updates');
       // Prevent multiple concurrent update checks
       if (isRefreshing || isCheckingForUpdates) {
@@ -284,7 +284,7 @@ function App() {
     fetchEmails();
     
     // Set up smart polling every 2 minutes, but only if we have a current user
-    //const intervalId = setInterval(checkForUpdates, 120000); // 2 minutes
+    //const intervalId = setInterval(_checkForUpdates, 120000); // 2 minutes
     
     // Cleanup interval on unmount
     return () => {
@@ -389,10 +389,11 @@ function App() {
     let tabFilteredEmails;
     switch (activeTab) {
       case 'inbox':
-        // Inbox: everything except Promotion or Ignore
+        // Inbox: everything except Promotion, Ignore, or Archived
         tabFilteredEmails = sortedEmails.filter(email => {
           const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
-          return !action.includes('promotion') && !action.includes('ignore');
+          const isArchived = email.state && email.state.includes('archived');
+          return !action.includes('promotion') && !action.includes('ignore') && !isArchived;
         });
         break;
       case 'all':
@@ -400,10 +401,11 @@ function App() {
         tabFilteredEmails = sortedEmails;
         break;
       case 'meh':
-        // Meh: only Promotion and Ignore
+        // Filtered: Promotion, Ignore, and Archived emails
         tabFilteredEmails = sortedEmails.filter(email => {
           const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
-          return action.includes('promotion') || action.includes('ignore');
+          const isArchived = email.state && email.state.includes('archived');
+          return action.includes('promotion') || action.includes('ignore') || isArchived;
         });
         break;
       default:
@@ -748,7 +750,8 @@ function App() {
             >
               Inbox ({emails.filter(email => {
                 const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
-                return !action.includes('promotion') && !action.includes('ignore');
+                const isArchived = email.state && email.state.includes('archived');
+                return !action.includes('promotion') && !action.includes('ignore') && !isArchived;
               }).length})
             </button>
             <button 
@@ -763,7 +766,8 @@ function App() {
             >
               Filtered ({emails.filter(email => {
                 const action = (email.action && typeof email.action === 'string') ? email.action.toLowerCase() : '';
-                return action.includes('promotion') || action.includes('ignore');
+                const isArchived = email.state && email.state.includes('archived');
+                return action.includes('promotion') || action.includes('ignore') || isArchived;
               }).length})
             </button>
           </div>
