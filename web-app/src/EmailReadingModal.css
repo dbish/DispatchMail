@@ -79,6 +79,7 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  padding: 0.5rem;
 }
 
 /* Reading Email Main Area */
@@ -112,14 +113,15 @@
 .reading-email-message.original {
   background: #fafbfc;
   border-radius: 8px;
-  margin: 0.75rem;
+  margin: 1rem;
+  padding: 1.5rem;
   border: 1px solid #d1d9e0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .reading-message-header {
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px solid #e1e4e8;
 }
 
@@ -144,14 +146,89 @@
   color: #24292f;
   font-size: 0.875rem;
   line-height: 1.6;
-  white-space: pre-wrap;
   background: transparent;
-  padding: 0.75rem 0;
+  padding: 1rem 0;
   border-radius: 0;
   font-family: inherit;
   max-height: none;
   overflow: visible;
   min-height: 2em;
+}
+
+/* Normalize HTML email content to reduce excessive spacing */
+.reading-message-body p {
+  margin: 0.5rem 0;
+}
+
+.reading-message-body p:first-child {
+  margin-top: 0;
+}
+
+.reading-message-body p:last-child {
+  margin-bottom: 0;
+}
+
+.reading-message-body p:empty {
+  display: none;
+}
+
+.reading-message-body br {
+  line-height: 1.2;
+}
+
+.reading-message-body div {
+  margin: 0;
+  padding: 0;
+}
+
+.reading-message-body div:empty {
+  display: none;
+}
+
+.reading-message-body table {
+  margin: 0.5rem 0;
+  border-collapse: collapse;
+}
+
+.reading-message-body td, .reading-message-body th {
+  padding: 0.25rem;
+  vertical-align: top;
+}
+
+.reading-message-body tr:empty {
+  display: none;
+}
+
+.reading-message-body td:empty, .reading-message-body th:empty {
+  padding: 0;
+  height: 0;
+}
+
+.reading-message-body * {
+  max-width: 100%;
+}
+
+/* Hide excessive spacing elements */
+.reading-message-body > br,
+.reading-message-body > br + br,
+.reading-message-body br + br + br {
+  display: none;
+}
+
+/* Collapse multiple consecutive empty elements */
+.reading-message-body div:empty + div:empty,
+.reading-message-body p:empty + p:empty,
+.reading-message-body td:empty + td:empty {
+  display: none;
+}
+
+/* Reset margins on nested elements */
+.reading-message-body table table {
+  margin: 0;
+}
+
+.reading-message-body div div {
+  margin: 0;
 }
 
 /* Reading Draft Compose Area */
