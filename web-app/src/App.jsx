@@ -588,6 +588,13 @@ function App() {
             <span className="email-preview">{getMessagePreview()}</span>
           )}
         </div>
+        {email.tags && email.tags.length > 0 && (
+          <div className="email-tags">
+            {email.tags.map((tag, index) => (
+              <span key={index} className="email-tag">{tag}</span>
+            ))}
+          </div>
+        )}
         <div className="email-status">
           <span className={`status-tag-compact ${status.type}`}>{status.text}</span>
         </div>
