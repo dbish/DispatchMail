@@ -64,7 +64,7 @@ DEFAULT_TOOLS = [
     {
       "type": "function",
       "name": "add_tags",
-      "description": "Add tags to the email",
+      "description": "Add tags to the email to label it, users may refer to it as tag, label, or categorize",
       "parameters": {
         "type": "object",
         "properties": {
@@ -135,7 +135,7 @@ class Agent:
         return email
         
     async def get_openai_response(self, prompt):
-        model = "gpt-4o-mini"
+        model = "gpt-4.1"
         messages = [
             {"role": "system", "content": "You are a helpful assistant that can help with email."},
             {"role": "user", "content": prompt}
