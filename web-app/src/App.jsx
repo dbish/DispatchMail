@@ -5,6 +5,7 @@ import ThinWhitelistModal from './ThinWhitelistModal.jsx';
 import EmailDraftModal from './EmailDraftModal.jsx';
 import AwaitingHumanModal from './AwaitingHumanModal.jsx';
 import ProcessedEmailModal from './ProcessedEmailModal.jsx';
+import ProcessingModal from './ProcessingModal.jsx';
 import Onboarding from './Onboarding.jsx';
 import UserSelector from './UserSelector.jsx';
 import UserProfileDropdown from './UserProfileDropdown.jsx';
@@ -20,6 +21,7 @@ function App() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [showWhitelistModal, setShowWhitelistModal] = useState(false);
+  const [showProcessingModal, setShowProcessingModal] = useState(false);
 
   const [selectedDraft, setSelectedDraft] = useState(null);
   const [selectedAwaitingHuman, setSelectedAwaitingHuman] = useState(null);
@@ -446,6 +448,7 @@ function App() {
 
       if (data.state === 'done') {
         setIsProcessing(false);
+        setShowProcessingModal(false);
       } else {
         const emailData = data.batch;
         deltaUpdateEmails(emailData || [], '');
@@ -455,7 +458,14 @@ function App() {
     } catch (error) {
       console.error('Failed to process emails:', error);
       setIsProcessing(false);
+      setShowProcessingModal(false);
     }
+  };
+
+  const handleProcessAllEmails = async () => {
+    console.log('Process All Emails - Not yet implemented');
+    // This is a no-op for now as requested
+    setShowProcessingModal(false);
   };
 
   const manualSync = async () => {
@@ -614,8 +624,9 @@ function App() {
             Save Prompt
           </button>
           <button 
-            onClick={processUnprocessedEmails} 
+            onClick={() => setShowProcessingModal(true)} 
             disabled={isProcessing}
+            className="secondary-cta-btn"
             style={{ marginTop: '0.5rem', marginLeft: '0.5rem' }}
           >
             {isProcessing ? 'Processing...' : 'Process Emails'}
@@ -881,6 +892,15 @@ function App() {
             updateEmailsAndCounts(data.emails || [], data.last_modified);
             setLastUpdated(new Date());
           }}
+        />
+      )}
+      
+      {showProcessingModal && (
+        <ProcessingModal
+          isOpen={showProcessingModal}
+          onClose={() => setShowProcessingModal(false)}
+          onProcessUnprocessed={() => processUnprocessedEmails(false)}
+          onProcessAll={handleProcessAllEmails}
         />
       )}
     </div>

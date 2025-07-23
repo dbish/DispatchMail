@@ -397,6 +397,39 @@ body {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Secondary CTA Button */
+.secondary-cta-btn {
+  background-color: transparent;
+  border: 1px solid var(--color-gray-400);
+  color: var(--color-gray-700);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.secondary-cta-btn:hover:not(:disabled) {
+  background-color: var(--color-gray-300);
+  border-color: var(--color-gray-500);
+  color: var(--color-gray-800);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.secondary-cta-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Tools List */
 .tools-list {
   list-style: none;
