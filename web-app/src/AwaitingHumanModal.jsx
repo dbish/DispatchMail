@@ -2,6 +2,38 @@ import { useState, useEffect } from 'react';
 import './EmailModals.css';
 import SenderResearchModal from './SenderResearchModal.jsx';
 
+// Function to clean HTML email content and remove excessive whitespace
+function cleanEmailHtml(html) {
+  if (!html) return '';
+  
+  let cleaned = html;
+  
+  // If html is an array (like in your data), join it
+  if (Array.isArray(html)) {
+    cleaned = html.join('');
+  }
+  
+  // Remove elements that are just whitespace
+  cleaned = cleaned.replace(/<(\w+)[^>]*>\s*<\/\1>/g, '');
+  
+  // Remove excessive whitespace between tags
+  cleaned = cleaned.replace(/>\s+</g, '><');
+  
+  // Remove multiple consecutive line breaks
+  cleaned = cleaned.replace(/(<br\s*\/?>){3,}/gi, '<br><br>');
+  
+  // Remove empty paragraphs and divs with just whitespace
+  cleaned = cleaned.replace(/<(p|div)[^>]*>\s*<\/(p|div)>/gi, '');
+  
+  // Remove multiple consecutive whitespace
+  cleaned = cleaned.replace(/\s{3,}/g, ' ');
+  
+  // Clean up table cells with just whitespace
+  cleaned = cleaned.replace(/<(td|th)[^>]*>\s*<\/(td|th)>/gi, '');
+  
+  return cleaned;
+}
+
 export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onDelete, onRerun }) {
   const [draftPrompt, setDraftPrompt] = useState('');
   const [llmPrompt, setLlmPrompt] = useState('');
@@ -152,7 +184,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
                     </div>
                   </div>
                   <div className="message-body">
-                    <div dangerouslySetInnerHTML={{ __html: email.html }} />
+                    <div dangerouslySetInnerHTML={{ __html: cleanEmailHtml(email.html) }} />
                   </div>
 
                 </div>

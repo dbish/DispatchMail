@@ -210,10 +210,16 @@ def research_sender():
         data = request.get_json()
         sender_email = data.get('sender_email')
         sender_name = data.get('sender_name', '')
-        research_prompt = inbox.get_prompt(PromptType.RESEARCH)
         
         if not sender_email:
             return jsonify({'error': 'Sender email required'}), 400
+        
+        # Get the research prompt from the database
+        research_prompt = inbox.get_prompt(PromptType.RESEARCH)
+        
+        # Fallback to default prompt if none is saved
+        if not research_prompt:
+            research_prompt = "You are an expert people researcher. You'll be provided an email and your goal is to create a snippet to summarize information about the sender. you can use the domain to understand the organization if it isn't a large email provider, and you can use web search to get info on them."
         
         # Format input exactly like the example
         if sender_name:
@@ -227,7 +233,7 @@ def research_sender():
         
         client = OpenAI(api_key=config_reader.OPENAI_API_KEY)
         
-        # Stick strictly to the example
+        # Use the saved research prompt from database
         response = client.responses.create(
             model="gpt-4.1",
             input=[
@@ -236,7 +242,7 @@ def research_sender():
                     "content": [
                         {
                             "type": "input_text",
-                            "text": "You are an expert people researcher. You'll be provided an email and your goal is to create a snippet to summarize information about the sender. you can use the domain to understand the organization if it isn't a large email provider, and you can use web search to get info on them."
+                            "text": research_prompt
                         }
                     ]
                 },

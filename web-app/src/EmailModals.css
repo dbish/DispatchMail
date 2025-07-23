@@ -559,6 +559,26 @@
   color: #c9d1d9;
 }
 
+/* Prompt loading state */
+.prompt-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: #8b949e;
+  font-size: 0.8rem;
+}
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #30363d;
+  border-top: 2px solid #58a6ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
 /* Loading State */
 .research-loading-state {
   display: flex;
@@ -1243,6 +1263,7 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  padding: 0.5rem;
 }
 
 .email-main-area {
@@ -1263,8 +1284,8 @@
   background: #fafbfc;
   border: 1px solid #d1d9e0;
   border-radius: 6px;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  padding: 1.5rem;
+  margin: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
@@ -1272,7 +1293,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e1e4e8;
 }
 
 .sender {
@@ -1288,8 +1311,83 @@
 .message-body {
   color: #24292f;
   line-height: 1.5;
-  white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* Normalize HTML email content to reduce excessive spacing */
+.message-body p {
+  margin: 0.5rem 0;
+}
+
+.message-body p:first-child {
+  margin-top: 0;
+}
+
+.message-body p:last-child {
+  margin-bottom: 0;
+}
+
+.message-body p:empty {
+  display: none;
+}
+
+.message-body br {
+  line-height: 1.2;
+}
+
+.message-body div {
+  margin: 0;
+  padding: 0;
+}
+
+.message-body div:empty {
+  display: none;
+}
+
+.message-body table {
+  margin: 0.5rem 0;
+  border-collapse: collapse;
+}
+
+.message-body td, .message-body th {
+  padding: 0.25rem;
+  vertical-align: top;
+}
+
+.message-body tr:empty {
+  display: none;
+}
+
+.message-body td:empty, .message-body th:empty {
+  padding: 0;
+  height: 0;
+}
+
+.message-body * {
+  max-width: 100%;
+}
+
+/* Hide excessive spacing elements */
+.message-body > br,
+.message-body > br + br,
+.message-body br + br + br {
+  display: none;
+}
+
+/* Collapse multiple consecutive empty elements */
+.message-body div:empty + div:empty,
+.message-body p:empty + p:empty,
+.message-body td:empty + td:empty {
+  display: none;
+}
+
+/* Reset margins on nested elements */
+.message-body table table {
+  margin: 0;
+}
+
+.message-body div div {
+  margin: 0;
 }
 
 /* Draft Compose Area */

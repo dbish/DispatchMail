@@ -1,19 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './EmailModals.css';
 
 export default function SenderResearchModal({ isOpen, onClose, senderEmail, senderName }) {
   const [isLoading, setIsLoading] = useState(false);
   const [researchData, setResearchData] = useState(null);
   const [error, setError] = useState('');
+  const [researchPrompt, setResearchPrompt] = useState('');
+  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false);
   
-  // Default research prompt
-  const defaultPrompt = `You are an expert people researcher. You'll be provided an email and your goal is to create a snippet to summarize information about the sender. you can use the domain to understand the organization if it isn't a large email provider, and you can use web search to get info on them.
+  // Fallback default prompt in case API fails
+  const fallbackPrompt = `You are an expert people researcher. You'll be provided an email and your goal is to create a snippet to summarize information about the sender. you can use the domain to understand the organization if it isn't a large email provider, and you can use web search to get info on them.
 
 Email: ${senderEmail}
 Name: ${senderName || 'Unknown'}`;
 
-  const [researchPrompt, setResearchPrompt] = useState(defaultPrompt);
-  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
+  // Fetch research prompt when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchResearchPrompt();
+    }
+  }, [isOpen, senderEmail, senderName]);
+
+  const fetchResearchPrompt = async () => {
+    setIsLoadingPrompt(true);
+    try {
+      const response = await fetch('/api/custom_prompt?type=research');
+      if (response.ok) {
+        const data = await response.json();
+        let prompt = data.prompt || fallbackPrompt;
+        
+        // Update the prompt with current sender info
+        prompt = prompt.replace(/Email: .*$/m, `Email: ${senderEmail}`)
+                      .replace(/Name: .*$/m, `Name: ${senderName || 'Unknown'}`);
+        
+        setResearchPrompt(prompt);
+      } else {
+        console.warn('Failed to fetch research prompt, using fallback');
+        setResearchPrompt(fallbackPrompt);
+      }
+    } catch (error) {
+      console.error('Error fetching research prompt:', error);
+      setResearchPrompt(fallbackPrompt);
+    } finally {
+      setIsLoadingPrompt(false);
+    }
+  };
 
   const handleResearch = async () => {
     setIsLoading(true);
@@ -46,14 +79,35 @@ Name: ${senderName || 'Unknown'}`;
     }
   };
 
-  const handlePromptUpdate = () => {
-    // For now, this is a no-op as requested
-    // In the future, this could save the prompt to user preferences
-    setIsEditingPrompt(false);
+  const handlePromptUpdate = async () => {
+    setIsSavingPrompt(true);
+    try {
+      const response = await fetch('/api/custom_prompt?type=research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: researchPrompt }),
+      });
+      
+      if (response.ok) {
+        setIsEditingPrompt(false);
+        // Could show a success message here if desired
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to save prompt:', errorData.error);
+        // For now, still close the editor but could show error to user
+        setIsEditingPrompt(false);
+      }
+    } catch (error) {
+      console.error('Error saving prompt:', error);
+      // For now, still close the editor but could show error to user
+      setIsEditingPrompt(false);
+    } finally {
+      setIsSavingPrompt(false);
+    }
   };
 
   const handlePromptReset = () => {
-    setResearchPrompt(defaultPrompt);
+    setResearchPrompt(fallbackPrompt);
     setIsEditingPrompt(false);
   };
 
@@ -208,8 +262,9 @@ Name: ${senderName || 'Unknown'}`;
                       <button 
                         className="prompt-save-btn"
                         onClick={handlePromptUpdate}
+                        disabled={isSavingPrompt}
                       >
-                        Save Changes
+                        {isSavingPrompt ? 'Saving...' : 'Save Changes'}
                       </button>
                       <button 
                         className="prompt-cancel-btn"
@@ -221,7 +276,14 @@ Name: ${senderName || 'Unknown'}`;
                   </div>
                 ) : (
                   <div className="prompt-display">
-                    <pre className="prompt-text">{researchPrompt}</pre>
+                    {isLoadingPrompt ? (
+                      <div className="prompt-loading">
+                        <div className="loading-spinner-small"></div>
+                        <span>Loading prompt...</span>
+                      </div>
+                    ) : (
+                      <pre className="prompt-text">{researchPrompt}</pre>
+                    )}
                   </div>
                 )}
               </div>
