@@ -108,16 +108,16 @@
 }
 
 .reading-email-message.original {
-  background: #0d1117;
+  background: #ffffff;
   border-radius: 8px;
   margin: 0.75rem;
-  border: 1px solid rgba(48, 54, 61, 0.5);
+  border: 1px solid #d1d9e0;
 }
 
 .reading-message-header {
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid #d1d9e0;
 }
 
 .reading-sender-info {
@@ -128,17 +128,17 @@
 
 .reading-sender {
   font-weight: 600;
-  color: #58a6ff;
+  color: #0969da;
   font-size: 0.875rem;
 }
 
 .reading-timestamp {
   font-size: 0.75rem;
-  color: #8b949e;
+  color: #656d76;
 }
 
 .reading-message-body {
-  color: #c9d1d9;
+  color: #24292f;
   font-size: 0.875rem;
   line-height: 1.6;
   white-space: pre-wrap;
