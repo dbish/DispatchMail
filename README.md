@@ -1,4 +1,13 @@
-# DispatchMail (Alpha) - AI-native Email Inbox
+<p align="center">
+    <picture>
+      <source srcset="assets/wordmarkpreferdark.png" media="(prefers-color-scheme: dark)">
+      <source srcset="assets/wordmark.png" media="(prefers-color-scheme: light)">
+      <img src="assets/wordmark.png" alt="DISPATCH MAIL">
+    </picture>
+  </a>
+</p>
+
+<p align="center">AI-native Email Inbox</p>
 
 DispatchMail is an open source locally run (though currently using OpenAI for queries) AI-powered email assistant that helps you manage your inbox. It monitors your email, processes it with an AI agent based on your prompts, and provides a (locally run) web interface for managing drafts/responses, and instructions.
 
