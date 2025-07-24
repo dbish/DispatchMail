@@ -42,7 +42,7 @@ DispatchMail is an AI-powered email assistant that helps you manage your inbox l
 
 3. Configure your credentials:
    - Edit `web-app/api/secrets.py` with your OpenAI API key
-   - For Gmail, create an App Password: https://support.google.com/mail/answer/185833
+   - For Gmail, create an App Password: https://support.google.com/mail/answer/185833 (add a feature request for login with Google if you'd prefer that :) )
 
 4. Start the services:
    ```bash
