@@ -1,0 +1,19 @@
+Component,Origin,License,Copyright
+Blinker,PyPI,MIT,Copyright 2010 Jason Kirtland
+Click,PyPI,BSD-3-Clause,Copyright 2014 Pallets
+Flask,PyPI,BSD-3-Clause,Copyright 2010 Pallets
+Flask-CORS,PyPI,MIT,Copyright (C) 2025 Cory Dolphin
+Itsdangerous,PyPI,BSD-3-Clause,Copyright 2011 Pallets
+Jinja2,PyPI,BSD-3-Clause,Copyright 2007 Pallets
+MarkupSafe,PyPI,BSD-3-Clause,Copyright 2010 Pallets
+Python-dotenv,PyPI,BSD-3-Clause,"Copyright (c) 2014, Saurabh Kumar (python-dotenv), 2013, Ted Tieken (django-dotenv-rw), 2013, Jacob Kaplan-Moss (django-dotenv)"
+Werkzeug,PyPI,BSD-3-Clause,Copyright 2007 Pallets
+openai-python,PyPI,Apache-2.0,Copyright 2025 OpenAI
+email-reply-parser,PyPI,MIT,Copyright (c) 2012 Zapier
+python-dateutil,PyPI,Apache-2.0,Copyright 2017- Paul Ganssle <paul@ganssle.io>
+tailwindcss,npm,MIT,"Copyright (c) Tailwind Labs, Inc."
+vitejs,npm,MIT,"Copyright (c) 2019-present, VoidZero Inc. and Vite contributors"
+eslint/json,npm,Apache-2.0,Copyright ESLint
+globals,npm,MIT,Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> 
+postcss,npm,MIT,Copyright 2013 Andrey Sitnik <andrey@sitnik.ru>
+autoprefixer,npm,MIT,Copyright 2013 Andrey Sitnik <andrey@sitnik.ru>
