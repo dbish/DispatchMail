@@ -657,7 +657,7 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>AgentMail</h1>
+        <h1>Dispatch Mail</h1>
         <div className="profile">
           <div className="avatar">🤖</div>
           <div className="user-info" onClick={() => setShowUserDropdown(!showUserDropdown)}>
@@ -697,7 +697,7 @@ function App() {
           >
             {isProcessing ? 'Processing...' : 'Process Emails'}
           </button>
-          <h3>Available Tools</h3>
+          <h3 style={{ marginTop: '1.5rem' }}>Available Tools</h3>
           <ul className="tools-list">
             <li>labelemail</li>
             <li>archiveemail</li>

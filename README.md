@@ -9,6 +9,10 @@
 
 <p align="center">AI-native Email Inbox</p>
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="DispatchMail Screenshot" width="800">
+</p>
+
 DispatchMail is an open source locally run (though currently using OpenAI for queries) AI-powered email assistant that helps you manage your inbox. It monitors your email, processes it with an AI agent based on your prompts, and provides a (locally run) web interface for managing drafts/responses, and instructions.
 
 ## Features
@@ -22,7 +26,7 @@ DispatchMail is an open source locally run (though currently using OpenAI for qu
 - 🕵️‍♂️ Customizable LLM powered deep research on sender profiles
 
 ## Planned Roadmap + Current Readiness
-This is an early alpha/prototype project. It's made to run locally for developers who want to tinker. We welcome feedback and plan to improve and expand based on user feedback and interest. We would love to offer a managed, more polished version of this if there is interest as we believe the future of AI Agents working with Humans is collaborative and will require more Human/Agent "multiplayer" spaces.
+This is an early alpha/prototype project, based on the Pete Koomen's article [AI Horseless Carriages](https://koomen.dev/essays/horseless-carriages/). It's made to run locally for developers who want to tinker. We welcome feedback and plan to improve and expand based on user feedback and interest. We would love to offer a managed, more polished version of this if there is interest as we believe the future of AI Agents working with Humans is collaborative and will require more Human/Agent "multiplayer" spaces.
 
 Long run, we want to not just give AI Agents a place to work in your inbox, but their own AI-native email as well as our colleagues. For now, this is a helpful babystep, and we welcome feedback, contributions, and discussion.
 
