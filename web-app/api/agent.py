@@ -33,6 +33,17 @@ DEFAULT_INSTRUCTIONS = """
 Create a draft response to any email that is specifically asking for a response and is not a marketing email or spam.
 """
 
+DRAFT_PROMPT_TEMPLATE = Template("""
+You are a helpful assistant that can help with email.
+You are given an email and your goal is to draft a response to the email based on the following instructions:
+$instructions
+
+EMAIL:
+$email
+
+RESPONSE:
+""")
+
 DEFAULT_RESPONSE_PROMPT = """
 Write a concise but friendly response.
 """
@@ -117,6 +128,8 @@ class Agent:
 
     async def process_email(self, email):
         #get the email content
+        if not email.body:
+            email.body = email.full_body
         email_content = email.body
         prompt = PROMPT_TEMPLATE.substitute(instructions=self.instructions, email=email_content, response_prompt=self.writing_prompt)
 
@@ -134,6 +147,19 @@ class Agent:
                     email.state.append('archived')
         return email
         
+    async def generate_draft(self, email):
+        if not email.body:
+            email.body = email.full_body
+        prompt = DRAFT_PROMPT_TEMPLATE.substitute(instructions=self.writing_prompt, email=email.body)
+        response = await self.get_openai_response(prompt)
+        response_text = ""
+        if response:
+          try:
+            response_text = response['tool_calls'][0]['arguments']['draft_email_body']
+          except:
+            response_text = ""
+        return response_text
+
     async def get_openai_response(self, prompt):
         model = "gpt-4.1"
         messages = [

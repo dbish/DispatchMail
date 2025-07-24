@@ -88,6 +88,16 @@ def send_email():
     inbox.send(email_id, draft_text)
     return jsonify({'success': True})
 
+@app.route('/api/generate_draft', methods=['POST'])
+def generate_draft():
+    data = request.get_json()
+    email_id = data.get('email_id')
+    if not email_id:
+        return jsonify({'error': 'Email ID required'}), 400
+    draft_text = inbox.generate_draft(email_id)
+    if not draft_text:
+        return jsonify({'error': 'Failed to generate draft'}), 500
+    return jsonify({'draft': draft_text})
 
 # Additional endpoints needed by frontend
 @app.route('/api/user_profile', methods=['GET'])

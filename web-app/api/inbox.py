@@ -456,6 +456,17 @@ class Inbox:
             return None
         return max(self.emails.values(), key=lambda x: str(x.date))
 
+    def generate_draft(self, email_id):
+        email = self.emails[email_id]
+        draft_text = asyncio.run(self.agent.generate_draft(email))
+        if draft_text:
+            email.drafted_response = draft_text
+            email.state.append('drafted_response')
+            self.db.put_email(email.to_db_dict(), self.user)
+            return draft_text
+        else:
+            return None
+
     def send(self, email_id, draft_text):
         email = self.emails[email_id]
         self.send_function(email, draft_text, self.user, self.app_password)

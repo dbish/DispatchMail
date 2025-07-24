@@ -114,27 +114,27 @@ class DatabaseManager:
                 
                 cursor.execute('''
                     INSERT OR REPLACE INTO emails 
-                    (message_id, subject, body, full_body, html, from_, to, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, account)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (message_id, subject, body, full_body, html, from_, to_, date, processed, state, drafted_response, sent_response, sent_date, sent_to, sent_subject, sent_body, tags, account)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    email_data.get('message_id', ''),
-                    email_data.get('subject', ''),
-                    email_data.get('body', ''),
-                    email_data.get('full_body', ''),
-                    email_data.get('html', ''),
-                    email_data.get('from', ''),
-                    email_data.get('to', ''),
-                    email_data.get('date', ''),
-                    email_data.get('processed', False),
-                    email_data.get('state', ''),
-                    email_data.get('drafted_response', ''),
-                    email_data.get('sent_response', ''),
-                    email_data.get('sent_date', ''),
-                    email_data.get('sent_to', ''),
-                    email_data.get('sent_subject', ''),
-                    email_data.get('sent_body', ''),
-                    email_data.get('tags', ''),
-                    account
+                        email_data['message_id'] or '',
+                        email_data['subject'] or '',
+                        email_data['body'] or '',
+                        email_data['full_body'] or '',
+                        email_data['html'] or '',
+                        email_data['from_'] or '',
+                        email_data['to_'] or '',
+                        email_data['date'] or '',
+                        email_data['processed'] or False,
+                        email_data['state'] or '',
+                        email_data['drafted_response'] or '',
+                        email_data['sent_response'] or '',
+                        email_data['sent_date'] or '',
+                        email_data['sent_to'] or '',
+                        email_data['sent_subject'] or '',
+                        email_data['sent_body'] or '',
+                        email_data['tags'] or '',
+                        account
                 ))
                 
                 conn.commit()

@@ -51,11 +51,11 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/rerun_email', {
+      const response = await fetch('/api/generate_draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          email_id: email.message_id
+          email_id: email.id
         }),
       });
       

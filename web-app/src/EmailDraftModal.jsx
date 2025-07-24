@@ -51,15 +51,15 @@ export default function EmailDraftModal({ isOpen, onClose, email, onSend, onDele
   const handleRerun = async () => {
     setIsRerunning(true);
     try {
-      const response = await fetch('/api/reprocess_single_email', {
+      const response = await fetch('/api/generate_draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message_id: email.message_id }),
+        body: JSON.stringify({ email_id: email.id }),
       });
       if (response.ok) {
         const data = await response.json();
-        if (data.new_draft) setEmailDraft(data.new_draft);
-        if (onRerun) onRerun(email.message_id);
+        if (data.draft) setEmailDraft(data.draft);
+        if (onRerun) onRerun(email.id);
       } else {
         console.error('Failed to rerun email processing');
       }
