@@ -8,7 +8,9 @@
 </p>
 
 <p align="center">AI-native Email Inbox (Alpha)</p>
-![version alpha](https://img.shields.io/badge/version-alpha-red)
+<p align="center">
+  <img alt="alpha" src="https://img.shields.io/badge/version-alpha-red">
+</p>
 
 
 <p align="center">
