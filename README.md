@@ -5,7 +5,7 @@ DispatchMail is an open source locally run (though currently using OpenAI for qu
 ## Features
 
 - 🤖 AI-powered email processing through OpenAI
-- 📱 Modern web interface for inbox management
+- 📱 Web interface for inbox management
 - 🎯 Customizable email filtering and whitelist rules to only give the AI access to specific types of emails
 - 📝 Draft generation and email composition
 - 🏷️ Automatic Email labeling and organization (including archival)
@@ -13,7 +13,7 @@ DispatchMail is an open source locally run (though currently using OpenAI for qu
 - 🕵️‍♂️ Customizable LLM powered deep research on sender profiles
 
 ## Planned Roadmap + Current Readiness
-This is an early alpha/prototype project. It's made to run locally for developers who want to tinker. We welcome feedback and plan to improve and expand based on user feedback and interest. We would love to off a managed, more polished version of this if there is interest as we believe the future of AI Agents working with Humans is collaborative and will require more Human/Agent "multiplayer" spaces.
+This is an early alpha/prototype project. It's made to run locally for developers who want to tinker. We welcome feedback and plan to improve and expand based on user feedback and interest. We would love to offer a managed, more polished version of this if there is interest as we believe the future of AI Agents working with Humans is collaborative and will require more Human/Agent "multiplayer" spaces.
 
 Long run, we want to not just give AI Agents a place to work in your inbox, but their own AI-native email as well as our colleagues. For now, this is a helpful babystep, and we welcome feedback, contributions, and discussion.
 
@@ -30,8 +30,8 @@ Long run, we want to not just give AI Agents a place to work in your inbox, but 
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd dMail
+   git clone https://github.com/dbish/DispatchMail.git
+   cd DispatchMail
    ```
 
 2. Run the setup script:
@@ -201,7 +201,7 @@ tail -f logs/frontend.log
 ### Project Structure
 
 ```
-dMail/
+DispatchMail/
 ├── database.py             # SQLite database interface
 ├── start.py                # Service startup script
 ├── setup.py                # Setup script
@@ -223,7 +223,7 @@ dMail/
 1. **Email Retrieval**: The API connects to your Gmail via IMAP to fetch new emails
 2. **Filtering**: Emails are filtered based on whitelist rules you configure
 3. **AI Processing**: Filtered emails are processed by OpenAI GPT for classification and draft generation
-4. **Web Interface**: The React frontend provides a modern UI for managing emails and drafts
+4. **Web Interface**: The React frontend provides a UI for managing emails and drafts
 5. **Local Storage**: All data is stored locally in SQLite for privacy
 
 ### Adding Features
