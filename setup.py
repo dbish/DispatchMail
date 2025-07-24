@@ -11,6 +11,7 @@ import sqlite3
 import json
 import getpass
 from pathlib import Path
+import unicodedata
 
 def install_dependencies():
     """Install required Python dependencies."""
@@ -94,12 +95,14 @@ def setup_user_account():
     if not password:
         print("❌ Password is required")
         return False
+
+    password = unicodedata.normalize('NFC', password) #normalize the password to NFC
     
     host = input(f"Enter IMAP host (default: imap.gmail.com): ").strip() or "imap.gmail.com"
     
     try:
         from database import db
-        
+        password = password.encode('utf-8')
         success = db.put_user(email, host, password)
         if success:
             print("✅ User account created successfully")
