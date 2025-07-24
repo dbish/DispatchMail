@@ -3,11 +3,11 @@ import os
 import importlib.util
 import sys
 
-# Load the local secrets.py file explicitly
-secrets_path = os.path.join(os.path.dirname(__file__), 'secrets.py')
-spec = importlib.util.spec_from_file_location('local_secrets', secrets_path)
-secrets = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(secrets)
+# Load the local credentials.py file explicitly
+credentials_path = os.path.join(os.path.dirname(__file__), 'credentials.py')
+spec = importlib.util.spec_from_file_location('local_credentials', credentials_path)
+credentials = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(credentials)
 
 load_dotenv()
 
@@ -21,4 +21,4 @@ DATABASE_PATH = os.getenv('DATABASE_PATH', os.path.join(PROJECT_ROOT, 'dmail.db'
 LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '1'))
 
 # OpenAI API Key
-OPENAI_API_KEY = secrets.OPENAI_API_KEY
+OPENAI_API_KEY = credentials.OPENAI_API_KEY

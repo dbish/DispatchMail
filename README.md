@@ -46,7 +46,7 @@ Long run, we want to not just give AI Agents a place to work in your inbox, but 
    - Guide you through account setup
 
 3. Configure your credentials:
-   - Edit `web-app/api/secrets.py` with your OpenAI API key
+   - Edit `web-app/api/credentials.py` with your OpenAI API key
    - For Gmail, create an App Password: https://support.google.com/mail/answer/185833 (add a feature request for login with Google if you'd prefer that :) )
 
 4. Start the services:
@@ -82,9 +82,9 @@ cd ../
 npm install
 ```
 
-### 2. Configure Secrets
+### 2. Configure Credentials
 
-Create `web-app/api/secrets.py`:
+Create `web-app/api/credentials.py`:
 ```python
 # OpenAI API Key
 OPENAI_API_KEY = 'your-openai-api-key'
@@ -160,7 +160,7 @@ The web API provides REST endpoints for:
 
 - All data is stored locally in SQLite
 - Email credentials are stored in the database
-- OpenAI API key is stored in `web-app/api/secrets.py`
+- OpenAI API key is stored in `web-app/api/credentials.py`
 - Consider using environment variables for production deployments
 - The application binds to `0.0.0.0:5000` by default
 
@@ -182,7 +182,7 @@ The web API provides REST endpoints for:
    - Make sure these ports are available
 
 4. **OpenAI API Errors**:
-   - Verify your API key is correct in `web-app/api/secrets.py`
+   - Verify your API key is correct in `web-app/api/credentials.py`
    - Check your OpenAI account has sufficient credits
 
 ### Debug Mode
@@ -211,7 +211,7 @@ dMail/
 │   │   ├── inbox.py        # Email processing logic
 │   │   ├── agent.py        # AI processing
 │   │   ├── gmail.py        # Gmail IMAP integration
-│   │   ├── secrets.py      # API keys and credentials
+│   │   ├── credentials.py  # API keys and credentials
 │   │   └── requirements.txt # Python dependencies
 │   ├── src/                # React frontend
 │   └── package.json        # Node.js dependencies

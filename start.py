@@ -162,10 +162,10 @@ def check_prerequisites():
     """Check if all prerequisites are met."""
     print("🔍 Checking prerequisites...")
     
-    # Check if secrets.py exists
-    secrets_file = Path("web-app/api/secrets.py")
-    if not secrets_file.exists():
-        print("❌ Configuration file missing: web-app/api/secrets.py")
+    # Check if credentials.py exists
+    credentials_file = Path("web-app/api/credentials.py")
+    if not credentials_file.exists():
+        print("❌ Configuration file missing: web-app/api/credentials.py")
         print("   Run 'python setup.py' to create it")
         return False
     

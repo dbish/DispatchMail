@@ -59,7 +59,7 @@ def create_sample_config():
     """Create a sample configuration file."""
     print("📝 Creating sample configuration...")
     
-    config_content = """# dMail Configuration
+    config_content = """# DispatchMail Configuration
 # This file contains your email credentials and API keys
 
 # OpenAI API Key (required for AI processing)
@@ -72,7 +72,7 @@ OPENAI_API_KEY = 'your-openai-api-key-here'
 """
     
     try:
-        sample_path = Path("web-app/api/secrets.py.sample")
+        sample_path = Path("web-app/api/credentials.py.sample")
         with open(sample_path, "w") as f:
             f.write(config_content)
         print(f"✅ Sample configuration created at {sample_path}")
@@ -152,35 +152,35 @@ def main():
     if not create_sample_config():
         print("⚠️  Warning: Could not create sample configuration")
     
-    # Step 4: Check if secrets file exists
-    secrets_file = Path("web-app/api/secrets.py")
-    if not secrets_file.exists():
+    # Step 4: Check if credentials file exists
+    credentials_file = Path("web-app/api/credentials.py")
+    if not credentials_file.exists():
         print("\n⚠️  Configuration required:")
-        print("   1. Copy web-app/api/secrets.py.sample to web-app/api/secrets.py")
-        print("   2. Update the OPENAI_API_KEY in secrets.py")
+        print("   1. Copy web-app/api/credentials.py.sample to web-app/api/credentials.py")
+        print("   2. Update the OPENAI_API_KEY in credentials.py")
         print("   3. For Gmail, create an App Password: https://support.google.com/mail/answer/185833")
         
         create_now = input("\nWould you like to create the configuration now? (y/n): ").lower().strip()
         if create_now == 'y':
             # Copy sample to actual file
             try:
-                sample_file = Path("web-app/api/secrets.py.sample")
+                sample_file = Path("web-app/api/credentials.py.sample")
                 if sample_file.exists():
                     with open(sample_file, "r") as sample:
                         content = sample.read()
-                    with open(secrets_file, "w") as actual:
+                    with open(credentials_file, "w") as actual:
                         actual.write(content)
-                    print(f"✅ Created {secrets_file} - please edit it with your API key")
+                    print(f"✅ Created {credentials_file} - please edit it with your API key")
                 else:
-                    # Create a basic secrets file
-                    with open(secrets_file, "w") as f:
+                    # Create a basic credentials file
+                    with open(credentials_file, "w") as f:
                         f.write("# OpenAI API Key\nOPENAI_API_KEY = 'your-openai-api-key-here'\n")
-                    print(f"✅ Created {secrets_file} - please edit it with your API key")
+                    print(f"✅ Created {credentials_file} - please edit it with your API key")
             except Exception as e:
-                print(f"❌ Failed to create secrets.py: {e}")
+                print(f"❌ Failed to create credentials.py: {e}")
     
     # Step 5: Optionally set up user account
-    if secrets_file.exists():
+    if credentials_file.exists():
         setup_user = input("\nWould you like to set up a user account now? (y/n): ").lower().strip()
         if setup_user == 'y':
             if not setup_user_account():
@@ -191,7 +191,7 @@ def main():
     
     print("\n✅ Setup complete!")
     print("\n📋 Next steps:")
-    print("   1. Edit web-app/api/secrets.py with your OpenAI API key")
+    print("   1. Edit web-app/api/credentials.py with your OpenAI API key")
     print("   2. Run 'python start.py' to start all services")
     print("   3. Open http://localhost:5173 and set up your email account")
     print("   4. Configure whitelist rules for email filtering")

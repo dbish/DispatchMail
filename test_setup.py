@@ -226,7 +226,7 @@ def main():
             failed += 1
     
     print(f"\n📊 Test Results:")
-    print(f"✅ Passed: {passed}")
+    print(f"✅ Passed: {passed}")   
     print(f"❌ Failed: {failed}")
     
     if failed == 0:
