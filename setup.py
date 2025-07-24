@@ -97,9 +97,9 @@ def setup_user_account():
         return False
 
     password = unicodedata.normalize('NFC', password) #normalize the password to NFC
-    if type(password) == bytes:
+    if type(password) != str:
         password = password.decode('utf-8')
-        print(f"Password is bytes, decoding")
+        print(f"Password was not a string, decoding")
 
     host = input(f"Enter IMAP host (default: imap.gmail.com): ").strip() or "imap.gmail.com"
     
