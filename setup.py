@@ -96,7 +96,14 @@ def setup_user_account():
         print("❌ Password is required")
         return False
     
-    password = unicodedata.normalize('NFC', password) #normalize the password to NFC
+    try:
+        #remove any non-breaking spaces
+        password = password.replace('\xa0', ' ')
+        #normalize the password to NFC
+        password = unicodedata.normalize('NFC', password) 
+    except Exception as e:
+        print(f"❌ Failed to normalize password: {e}")
+    
  
     host = input(f"Enter IMAP host (default: imap.gmail.com): ").strip() or "imap.gmail.com"
     
