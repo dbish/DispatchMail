@@ -579,7 +579,15 @@ body {
   gap: var(--space-xs);
   flex-shrink: 0;
   max-width: 120px;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to visible for hover expansion */
+  position: relative;
+  z-index: 1;
+}
+
+.email-tags:hover {
+  max-width: none; /* Allow expansion on hover */
+  overflow: visible;
+  z-index: 10; /* Bring to front on hover */
 }
 
 .email-tag {
@@ -593,6 +601,20 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: all 0.2s ease;
+}
+
+.email-tag-more {
+  background-color: rgba(107, 114, 126, 0.1);
+  color: #6b727e;
+  border: 1px solid rgba(107, 114, 126, 0.2);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.email-tag-more:hover {
+  background-color: rgba(107, 114, 126, 0.2);
+  color: #4b5563;
 }
 
 .email-status {

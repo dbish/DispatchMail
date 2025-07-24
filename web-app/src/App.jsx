@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import EmailReadingModal from './EmailReadingModal.jsx';
 import ThinDraftingSettingsModal from './ThinDraftingSettingsModal.jsx';
 import ThinWhitelistModal from './ThinWhitelistModal.jsx';
 import EmailDraftModal from './EmailDraftModal.jsx';
@@ -9,6 +10,31 @@ import ProcessingModal from './ProcessingModal.jsx';
 import Onboarding from './Onboarding.jsx';
 import UserSelector from './UserSelector.jsx';
 import UserProfileDropdown from './UserProfileDropdown.jsx';
+
+// Component to handle tag display with +N indicator
+const TagsList = ({ tags, maxVisible = 1 }) => {
+  const [showAll, setShowAll] = useState(false);
+  
+  if (!tags || tags.length === 0) return null;
+  
+  const visibleTags = showAll ? tags : tags.slice(0, maxVisible);
+  const remainingCount = tags.length - maxVisible;
+  
+  return (
+    <div 
+      className="email-tags"
+      onMouseEnter={() => setShowAll(true)}
+      onMouseLeave={() => setShowAll(false)}
+    >
+      {visibleTags.map((tag, index) => (
+        <span key={index} className="email-tag">{tag}</span>
+      ))}
+      {!showAll && remainingCount > 0 && (
+        <span className="email-tag email-tag-more">+{remainingCount}</span>
+      )}
+    </div>
+  );
+};
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -590,13 +616,7 @@ function App() {
             <span className="email-preview">{getMessagePreview()}</span>
           )}
         </div>
-        {email.tags && email.tags.length > 0 && (
-          <div className="email-tags">
-            {email.tags.map((tag, index) => (
-              <span key={index} className="email-tag">{tag}</span>
-            ))}
-          </div>
-        )}
+        <TagsList tags={email.tags} maxVisible={1} />
         <div className="email-status">
           <span className={`status-tag-compact ${status.type}`}>{status.text}</span>
         </div>
