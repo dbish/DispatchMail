@@ -1,16 +1,21 @@
-# DispatchMail - Local Email AI Assistant
+# DispatchMail (Alpha) - AI-native Email Inbox
 
-DispatchMail is an AI-powered email assistant that helps you manage your inbox locally using SQLite. It monitors your email, processes it with AI, and provides a web interface for managing drafts and responses.
+DispatchMail is an open source locally run (though currently using OpenAI for queries) AI-powered email assistant that helps you manage your inbox. It monitors your email, processes it with an AI agent based on your prompts, and provides a (locally run) web interface for managing drafts/responses, and instructions.
 
 ## Features
 
-- 🔄 Real-time email monitoring via IMAP
-- 🤖 AI-powered email processing with OpenAI GPT
+- 🤖 AI-powered email processing through OpenAI
 - 📱 Modern web interface for inbox management
-- 🎯 Customizable email filtering and whitelist rules
+- 🎯 Customizable email filtering and whitelist rules to only give the AI access to specific types of emails
 - 📝 Draft generation and email composition
-- 🏷️ Email labeling and organization
-- 🗄️ Local SQLite database (no cloud dependencies)
+- 🏷️ Automatic Email labeling and organization (including archival)
+- 🗄️ Local SQLite database (no cloud dependencies for storage)
+- 🕵️‍♂️ Customizable LLM powered deep research on sender profiles
+
+## Planned Roadmap + Current Readiness
+This is an early alpha/prototype project. It's made to run locally for developers who want to tinker. We welcome feedback and plan to improve and expand based on user feedback and interest. We would love to off a managed, more polished version of this if there is interest as we believe the future of AI Agents working with Humans is collaborative and will require more Human/Agent "multiplayer" spaces.
+
+Long run, we want to not just give AI Agents a place to work in your inbox, but their own AI-native email as well as our colleagues. For now, this is a helpful babystep, and we welcome feedback, contributions, and discussion.
 
 ## Quick Start
 
