@@ -64,6 +64,11 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(() => {
+    // Only show loading if we have a current user
+    const stored = localStorage.getItem('userEmail');
+    return !!stored;
+  });
   
   // New state for user selection flow
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -174,6 +179,7 @@ function App() {
         setUserProfile(null);
         setShowUserDropdown(false);
         setEmails([]);
+        setIsInitialLoading(true); // Reset loading state
         setLastCounts({
           unprocessed_count: 0,
           awaiting_human_count: 0,
@@ -193,6 +199,7 @@ function App() {
     setCurrentUser(email);
     setShowOnboarding(false);
     setUsersLoaded(false); // Reset to refetch users
+    setIsInitialLoading(true); // Reset loading state for new user
   };
 
   const handleAddNewAccount = () => {
@@ -238,6 +245,7 @@ function App() {
         console.error('Failed to fetch emails', err);
       } finally {
         setIsRefreshing(false);
+        setIsInitialLoading(false);
       }
     };
 
@@ -795,11 +803,42 @@ function App() {
           {/* Email List */}
           <div className="inbox-section">
             <div className="email-list">
-              {allEmails.map((email) => (
-                <EmailItem key={email.id} email={email} />
-              ))}
-              {allEmails.length === 0 && (
-                <div className="empty-state">No emails found</div>
+              {isInitialLoading ? (
+                <div className="loading-state">
+                  <div className="loading-state-content">
+                    <div className="loading-spinner"></div>
+                    <p>Loading your emails...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {allEmails.map((email) => (
+                    <EmailItem key={email.id} email={email} />
+                  ))}
+                  {allEmails.length === 0 && (
+                    <div className="empty-state">
+                      <div className="empty-state-content">
+                        <h3>No emails found</h3>
+                        <p>Get started by setting up whitelist rules or checking for new emails.</p>
+                        <div className="empty-state-actions">
+                          <button 
+                            className="cta-button primary"
+                            onClick={() => setShowWhitelistModal(true)}
+                          >
+                            Set Whitelist Rules
+                          </button>
+                          <button 
+                            className="cta-button secondary"
+                            onClick={manualSync}
+                            disabled={isSyncing}
+                          >
+                            {isSyncing ? 'Getting Emails...' : 'Fetch Emails'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
