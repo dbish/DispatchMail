@@ -35,29 +35,14 @@ function cleanEmailHtml(html) {
 }
 
 export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) {
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [draftPrompt, setDraftPrompt] = useState('');
-  const [llmPrompt, setLlmPrompt] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isSettingsPanelExpanded, setIsSettingsPanelExpanded] = useState(false);
   const [showResearchModal, setShowResearchModal] = useState(false);
 
   useEffect(() => {
     if (email && isOpen) {
       setEmailDraft(email.drafted_response || '');
-      setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
-      
-      fetch('/api/custom_prompt?type=processing')
-        .then((res) => res.json())
-        .then((data) => setSystemPrompt(data.prompt || ''))
-        .catch(() => setSystemPrompt(''));
-        
-      fetch('/api/custom_prompt?type=writing')
-        .then((res) => res.json())
-        .then((data) => setDraftPrompt(data.prompt || ''))
-        .catch(() => setDraftPrompt(''));
     }
   }, [email, isOpen]);
 
@@ -70,16 +55,13 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          email_id: email.message_id,
-          system_prompt: systemPrompt,
-          draft_prompt: draftPrompt
+          email_id: email.message_id
         }),
       });
       
       if (response.ok) {
         const data = await response.json();
         setEmailDraft(data.draft || '');
-        setLlmPrompt(data.llm_prompt || 'No LLM prompt available');
       } else {
         console.error('Failed to generate draft:', response.status);
       }
@@ -98,10 +80,6 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
       console.error('Error sending email:', error);
       setIsSending(false);
     }
-  };
-
-  const toggleSettingsPanel = () => {
-    setIsSettingsPanelExpanded(!isSettingsPanelExpanded);
   };
   
   const isSentEmail = email.action === 'sent';
@@ -137,7 +115,7 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
   return (
     <>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal awaiting-human-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div className="email-subject">
               <span className="subject-label">Re:</span>
@@ -193,51 +171,6 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
                 </div>
               </div>
             </div>
-
-            <div className={`settings-panel ${isSettingsPanelExpanded ? 'expanded' : 'collapsed'}`}>
-              <div className="settings-panel-content">
-                <div className="settings-section">
-                  <div className="settings-header">
-                    <h3>AI Settings</h3>
-                    <button className="panel-collapse-btn" onClick={toggleSettingsPanel} aria-label="Collapse settings panel">
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="settings-field">
-                    <label>System Prompt</label>
-                    <textarea
-                      className="settings-textarea"
-                      value={systemPrompt}
-                      onChange={(e) => setSystemPrompt(e.target.value)}
-                      placeholder="System prompt for AI..."
-                      rows={4}
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>Drafting Instructions</label>
-                    <textarea
-                      className="settings-textarea"
-                      value={draftPrompt}
-                      onChange={(e) => setDraftPrompt(e.target.value)}
-                      placeholder="Customize how the AI should write responses..."
-                      rows={4}
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>Actual LLM Prompt (Debug)</label>
-                    <textarea
-                      className="settings-textarea readonly"
-                      value={llmPrompt}
-                      readOnly
-                      placeholder="The actual content sent to the LLM..."
-                      rows={6}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
           
           <div className="modal-footer">
@@ -249,12 +182,6 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
               )}
             </div>
             <div className="compose-footer-right">
-              <button className="settings-toggle-btn" onClick={toggleSettingsPanel} aria-label={isSettingsPanelExpanded ? "Hide Settings" : "Show Settings"}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM8 1a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 8 1Zm0 12a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 13Zm5.657-10.243a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0Zm-9.9 9.9a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0ZM15 8a.75.75 0 0 1-.75.75h-.75a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 15 8ZM3 8a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 3 8Zm10.243 5.657a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Zm-9.9-9.9a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Z"/>
-                </svg>
-                Settings
-              </button>
               {!isSentEmail && (
                 <button className="send-btn" onClick={handleSend} disabled={isSending || !emailDraft.trim()}>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -268,12 +195,14 @@ export default function ProcessedEmailModal({ isOpen, onClose, email, onSend }) 
         </div>
       </div>
       
-      <SenderResearchModal
-        isOpen={showResearchModal}
-        onClose={() => setShowResearchModal(false)}
-        senderEmail={senderEmail}
-        senderName={senderName}
-      />
+      {showResearchModal && (
+        <SenderResearchModal
+          isOpen={showResearchModal}
+          onClose={() => setShowResearchModal(false)}
+          senderEmail={senderEmail}
+          senderName={senderName}
+        />
+      )}
     </>
   );
 } 

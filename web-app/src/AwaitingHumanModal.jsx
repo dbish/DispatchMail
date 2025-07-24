@@ -35,26 +35,14 @@ function cleanEmailHtml(html) {
 }
 
 export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onDelete, onRerun }) {
-  const [draftPrompt, setDraftPrompt] = useState('');
-  const [llmPrompt, setLlmPrompt] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [isRerunning, setIsRerunning] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isSettingsPanelExpanded, setIsSettingsPanelExpanded] = useState(false);
   const [showResearchModal, setShowResearchModal] = useState(false);
 
   useEffect(() => {
     if (email && isOpen) {
       setEmailDraft(email.drafted_response || '');
-      
-      // Set the LLM prompt (what was actually sent to the AI)
-      setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
-      
-      // Fetch current draft prompt
-      fetch('/api/custom_prompt?type=writing')
-        .then((res) => res.json())
-        .then((data) => setDraftPrompt(data.prompt || ''))
-        .catch(() => {});
     }
   }, [email, isOpen]);
 
@@ -63,40 +51,14 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
   const handleRerun = async () => {
     setIsRerunning(true);
     try {
-      // Update draft prompt if it was changed
-      const requests = [];
-      
-      // Only update draft prompt if it's not empty
-      if (draftPrompt && draftPrompt.trim()) {
-        requests.push(
-          fetch('/api/custom_prompt?type=writing', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: draftPrompt }),
-          })
-        );
-      }
-      
-      // Wait for all prompt updates to complete
-      if (requests.length > 0) {
-        await Promise.all(requests);
-      }
-
-      // Trigger reprocessing of this specific email
       const response = await fetch('/api/reprocess_single_email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: email.message_id }),
       });
-      
       if (response.ok) {
         const data = await response.json();
-        if (data.new_draft) {
-          setEmailDraft(data.new_draft);
-        }
-        if (data.llm_prompt) {
-          setLlmPrompt(data.llm_prompt);
-        }
+        if (data.new_draft) setEmailDraft(data.new_draft);
         if (onRerun) onRerun(email.message_id);
       } else {
         console.error('Failed to rerun email processing');
@@ -112,20 +74,13 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
     setIsSending(true);
     try {
       await onSend(emailDraft);
-
     } catch (error) {
       console.error('Error sending email:', error);
-      setIsSending(false); // Only reset on error, success will close modal
+      setIsSending(false);
     }
   };
 
-  const handleDelete = () => {
-    onDelete(email.message_id);
-  };
-
-  const toggleSettingsPanel = () => {
-    setIsSettingsPanelExpanded(!isSettingsPanelExpanded);
-  };
+  const handleDelete = () => onDelete(email.message_id);
 
   // Extract sender information
   const extractSenderInfo = () => {
@@ -172,9 +127,7 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
           </div>
           
           <div className="modal-content">
-            {/* Main Email Area */}
             <div className="email-main-area">
-              {/* Original Email Thread */}
               <div className="email-thread">
                 <div className="email-message original">
                   <div className="message-header">
@@ -186,11 +139,9 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
                   <div className="message-body">
                     <div dangerouslySetInnerHTML={{ __html: cleanEmailHtml(email.html) }} />
                   </div>
-
                 </div>
               </div>
-
-              {/* Draft Compose Area */}
+              
               <div className="draft-compose-area">
                 <div className="compose-header">
                   <span className="compose-label">Generated Response</span>
@@ -205,16 +156,6 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
                       </svg>
                       Research Sender
                     </button>
-                    <button 
-                      className="settings-toggle-btn" 
-                      onClick={toggleSettingsPanel}
-                      aria-label={isSettingsPanelExpanded ? "Hide Settings" : "Show Settings"}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M8 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM8 1a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 8 1Zm0 12a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 13Zm5.657-10.243a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0Zm-9.9 9.9a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0ZM15 8a.75.75 0 0 1-.75.75h-.75a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 15 8ZM3 8a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 3 8Zm10.243 5.657a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Zm-9.9-9.9a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Z"/>
-                      </svg>
-                      Settings
-                    </button>
                   </div>
                 </div>
                 
@@ -225,42 +166,6 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
                     onChange={(e) => setEmailDraft(e.target.value)}
                     placeholder="Generated email draft will appear here..."
                   />
-                </div>
-              </div>
-            </div>
-
-            {/* Collapsible Settings Panel */}
-            <div className={`settings-panel ${isSettingsPanelExpanded ? 'expanded' : 'collapsed'}`}>
-              <div className="settings-panel-content">
-                <div className="settings-section">
-                  <div className="settings-header">
-                    <h3>AI Settings</h3>
-                    <button className="panel-collapse-btn" onClick={toggleSettingsPanel} aria-label="Collapse settings panel">
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="settings-field">
-                    <label>Drafting Instructions</label>
-                    <textarea
-                      className="settings-textarea"
-                      value={draftPrompt}
-                      onChange={(e) => setDraftPrompt(e.target.value)}
-                      placeholder="Customize how the AI should write responses..."
-                      rows={4}
-                    />
-                  </div>
-                  <div className="settings-field">
-                    <label>Actual LLM Prompt (Debug)</label>
-                    <textarea
-                      className="settings-textarea readonly"
-                      value={llmPrompt}
-                      readOnly
-                      placeholder="The actual content sent to the LLM..."
-                      rows={6}
-                    />
-                  </div>
                 </div>
               </div>
             </div>
@@ -287,12 +192,14 @@ export default function AwaitingHumanModal({ isOpen, onClose, email, onSend, onD
         </div>
       </div>
       
-      <SenderResearchModal
-        isOpen={showResearchModal}
-        onClose={() => setShowResearchModal(false)}
-        senderEmail={senderEmail}
-        senderName={senderName}
-      />
+      {showResearchModal && (
+        <SenderResearchModal
+          isOpen={showResearchModal}
+          onClose={() => setShowResearchModal(false)}
+          senderEmail={senderEmail}
+          senderName={senderName}
+        />
+      )}
     </>
   );
 } 

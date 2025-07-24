@@ -34,21 +34,13 @@ function cleanEmailHtml(html) {
 }
 
 export default function EmailReadingModal({ isOpen, onClose, email, onSend, onDelete, onRerun }) {
-  const [draftPrompt, setDraftPrompt] = useState('');
-  const [llmPrompt, setLlmPrompt] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [isRerunning, setIsRerunning] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [isSettingsPanelExpanded, setIsSettingsPanelExpanded] = useState(false);
 
   useEffect(() => {
     if (email && isOpen) {
       setEmailDraft(email.draft || '');
-      setLlmPrompt(email.llm_prompt || 'No LLM prompt available');
-      fetch('/api/custom_prompt?type=writing')
-        .then((res) => res.json())
-        .then((data) => setDraftPrompt(data.prompt || ''))
-        .catch(() => {});
     }
   }, [email, isOpen]);
 
@@ -57,13 +49,6 @@ export default function EmailReadingModal({ isOpen, onClose, email, onSend, onDe
   const handleRerun = async () => {
     setIsRerunning(true);
     try {
-      if (draftPrompt && draftPrompt.trim()) {
-        await fetch('/api/custom_prompt?type=writing', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: draftPrompt }),
-        });
-      }
       const response = await fetch('/api/reprocess_single_email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,7 +57,6 @@ export default function EmailReadingModal({ isOpen, onClose, email, onSend, onDe
       if (response.ok) {
         const data = await response.json();
         if (data.new_draft) setEmailDraft(data.new_draft);
-        if (data.llm_prompt) setLlmPrompt(data.llm_prompt);
         if (onRerun) onRerun(email.message_id);
       } else {
         console.error('Failed to rerun email processing');
@@ -95,7 +79,6 @@ export default function EmailReadingModal({ isOpen, onClose, email, onSend, onDe
   };
 
   const handleDelete = () => onDelete(email.message_id);
-  const toggleSettingsPanel = () => setIsSettingsPanelExpanded(!isSettingsPanelExpanded);
 
   return (
     <div className="reading-modal-overlay" onClick={onClose}>
@@ -142,41 +125,6 @@ export default function EmailReadingModal({ isOpen, onClose, email, onSend, onDe
               </div>
             </div>
           </div>
-          
-          <div className={`reading-settings-panel ${isSettingsPanelExpanded ? 'expanded' : 'collapsed'}`}>
-            <div className="reading-settings-panel-content">
-              <div className="reading-settings-section">
-                <div className="reading-settings-header">
-                  <h3>AI Settings</h3>
-                  <button className="reading-panel-collapse-btn" onClick={toggleSettingsPanel} aria-label="Collapse settings panel">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div className="reading-settings-field">
-                  <label>Drafting Instructions</label>
-                  <textarea 
-                    className="reading-settings-textarea" 
-                    value={draftPrompt} 
-                    onChange={(e) => setDraftPrompt(e.target.value)} 
-                    placeholder="Customize how the AI should write responses..." 
-                    rows={4} 
-                  />
-                </div>
-                <div className="reading-settings-field">
-                  <label>Actual LLM Prompt (Debug)</label>
-                  <textarea 
-                    className="reading-settings-textarea readonly" 
-                    value={llmPrompt} 
-                    readOnly 
-                    placeholder="The actual content sent to the LLM..." 
-                    rows={6} 
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
         
         <div className="reading-modal-footer">
@@ -197,16 +145,6 @@ export default function EmailReadingModal({ isOpen, onClose, email, onSend, onDe
             </button>
           </div>
           <div className="reading-compose-footer-right">
-            <button 
-              className="reading-settings-toggle-btn" 
-              onClick={toggleSettingsPanel} 
-              aria-label={isSettingsPanelExpanded ? "Hide Settings" : "Show Settings"}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM8 1a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 8 1Zm0 12a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75A.75.75 0 0 1 8 13Zm5.657-10.243a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0Zm-9.9 9.9a.75.75 0 0 1 0 1.061l-.53.53a.75.75 0 0 1-1.061-1.061l.53-.53a.75.75 0 0 1 1.061 0ZM15 8a.75.75 0 0 1-.75.75h-.75a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 15 8ZM3 8a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h.75A.75.75 0 0 1 3 8Zm10.243 5.657a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Zm-9.9-9.9a.75.75 0 0 1-1.061 0l-.53-.53a.75.75 0 0 1 1.061-1.061l.53.53a.75.75 0 0 1 0 1.061Z"/>
-              </svg>
-              Settings
-            </button>
             <button 
               className="reading-send-btn" 
               onClick={handleSend} 
