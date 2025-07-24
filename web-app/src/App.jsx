@@ -765,7 +765,7 @@ function App() {
                 disabled={isSyncing}
                 style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
               >
-                {isSyncing ? 'Syncing...' : 'Get Updates'}
+                {isSyncing ? 'Syncing...' : 'Fetch Emails'}
               </button>
             </div>
           </div>
