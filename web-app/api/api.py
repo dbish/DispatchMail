@@ -124,7 +124,10 @@ def get_user_profile():
 
         # Get user metadata
         inbox.user = email
-        inbox.app_password = user.get('password')
+        app_password = user.get('password')
+        if type(app_password) == bytes:
+            app_password = app_password.decode('utf-8')
+        inbox.app_password = app_password
         metadata = db.get_metadata(email)
                 
         profile = {
