@@ -7,7 +7,9 @@
   </a>
 </p>
 
-<p align="center">AI-native Email Inbox</p>
+<p align="center">AI-native Email Inbox (Alpha)</p>
+![version alpha](https://img.shields.io/badge/version-alpha-red)
+
 
 <p align="center">
   <img src="assets/screenshot.png" alt="DispatchMail Screenshot" width="800">
