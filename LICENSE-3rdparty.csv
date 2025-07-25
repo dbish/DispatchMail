@@ -1,16 +1,72 @@
 Component,Origin,License,Copyright
+aiohttp,PyPI,Apache-2.0,Copyright aio-libs contributors
+aioimaplib,PyPI,GPL-3.0,"Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>"
+aiosignal,PyPI,Apache-2.0,Copyright 2013-2019 Nikolay Kim and Andrew Svetlov
+annotated-types,PyPI,MIT,Copyright (c) 2022 the contributors
+AnyIO,PyPI,MIT,Copyright (c) 2018 Alex Grönholm
+async-timeout,PyPI,Apache-2.0,Copyright 2016-2020 aio-libs collaboration
+attrs,PyPI,MIT,Copyright (c) 2015 Hynek Schlawack and the attrs contributors
 Blinker,PyPI,MIT,Copyright 2010 Jason Kirtland
+cachetools,PyPI,MIT,Copyright (c) 2014-2025 Thomas Kemmer
+charset-normalizer,PyPI,MIT,Copyright (c) 2025 TAHRI Ahmed R.
 Click,PyPI,BSD-3-Clause,Copyright 2014 Pallets
+distro,PyPI,Apache-2.0,Copyright Nir Cohen
+email-reply-parser,PyPI,MIT,Copyright (c) 2012 Zapier
+exceptiongroup,PyPI,MIT,Copyright (c) 2022 Alex Grönholm
 Flask,PyPI,BSD-3-Clause,Copyright 2010 Pallets
 Flask-CORS,PyPI,MIT,Copyright (C) 2025 Cory Dolphin
+frozenlist,PyPI,Apache-2.0,Copyright 2013-2019 Nikolay Kim and Andrew Svetlov
+google-api-core,PyPI,Apache-2.0,Copyright Goolge LLC
+google-api-python-client,PyPI,Apache-2.0,Copyright Goolge LLC
+google-auth,PyPI,Apache-2.0,Copyright Goolge LLC
+google-auth-httplib2,PyPI,Apache-2.0,Copyright Goolge LLC
+google-auth-oauthlib,PyPI,Apache-2.0,Copyright Goolge LLC
+googleapis-common-protos,PyPI,Apache-2.0,Copyright Goolge LLC
+h11,PyPI,MIT,Copyright (c) 2016 Nathaniel J. Smith <njs@pobox.com> and other contributors
+httpcore,PyPI,BSD-3-Clause,"Copyright © 2020, Encode OSS Ltd."
+httplib2,PyPI,MIT,Copyright (c) 2006 by Joe Gregorio
+httpx,PyPI,BSD-3-Clause,"Copyright © 2019, Encode OSS Ltd"
+httpx-sse,PyPI,MIT,Copyright (c) 2022 Florimond Manca
+idna,PyPI,BSD-3-Clause,"Copyright (c) 2013-2025, Kim Davies and contributors"
 Itsdangerous,PyPI,BSD-3-Clause,Copyright 2011 Pallets
 Jinja2,PyPI,BSD-3-Clause,Copyright 2007 Pallets
+jiter,PyPI,MIT,Copyright (c) 2022 to present Samuel Colvin
+jmespath,PyPI,MIT,"Copyright (c) 2013 Amazon.com, Inc. or its affiliates"
+jsonschema,PyPI,MIT,Copyright (c) 2013 Julian Berman
+jsonschema-specifications,PyPI,MIT,Copyright (c) 2022 Julian Berman
+mail-parser,PyPI,Apache-2.0,Copyright Fedele Mantuano
 MarkupSafe,PyPI,BSD-3-Clause,Copyright 2010 Pallets
-Python-dotenv,PyPI,BSD-3-Clause,"Copyright (c) 2014, Saurabh Kumar (python-dotenv), 2013, Ted Tieken (django-dotenv-rw), 2013, Jacob Kaplan-Moss (django-dotenv)"
-Werkzeug,PyPI,BSD-3-Clause,Copyright 2007 Pallets
+multidict,PyPI,Apache-2.0,Copyright 2016 Andrew Svetlov and aio-libs contributors
+oauthlib,PyPI,BSD-3-Clause,Copyright (c) The OAuthlib Community
 openai-python,PyPI,Apache-2.0,Copyright 2025 OpenAI
-email-reply-parser,PyPI,MIT,Copyright (c) 2012 Zapier
+proto-plus,PyPI,Apache-2.0,Copyright Goolge LLC
+protobuf,PyPI,BSD-3-Clause,Copyright Goolge LLC
+pyasn1,PyPI,BSD-2-Clause,"Copyright (c) 2005-2020, Ilya Etingof <etingof@gmail.com>"
+pyasn1_modules,PyPI,BSD-2-Clause,"Copyright (c) 2005-2020, Ilya Etingof <etingof@gmail.com>"
+pydantic,PyPI,MIT,Copyright (c) 2017 to present Pydantic Services Inc. and individual contributors
+pydantic-settings,PyPI,MIT,Copyright (c) 2022 Samuel Colvin and other contributors
+pydantic_core,PyPI,MIT,Copyright (c) 2022 Samuel Colvin
+pyparsing,PyPI,MIT,Copyright Paul McGuire
 python-dateutil,PyPI,Apache-2.0,Copyright 2017- Paul Ganssle <paul@ganssle.io>
+Python-dotenv,PyPI,BSD-3-Clause,"Copyright (c) 2014, Saurabh Kumar (python-dotenv), 2013, Ted Tieken (django-dotenv-rw), 2013, Jacob Kaplan-Moss (django-dotenv)"
+python-multipart,PyPI,Apache-2.0,"Copyright 2012, Andrew Dunham"
+referencing,PyPI,MIT,Copyright (c) 2022 Julian Berman
+requests,PyPI,Apache-2.0,
+rpds-py,PyPI,MIT,Copyright (c) 2023 Julian Berman
+rsa,PyPI,Apache-2.0,Copyright 2011 Sybren A. Stüvel <sybren@stuvel.eu>
+s3transfer,PyPI,Apache-2.0,Copyright Amazon Web Services
+simplejson,PyPI,MIT,Copyright (c) 2006 Bob Ippolito
+six,PyPI,MIT,Copyright (c) 2010-2024 Benjamin Peterson
+sniffio,PyPI,MIT,Copyright Nathaniel J. Smith
+sse-starlette,PyPI,BSD-3-Clause,"Copyright © 2020, [sysid](https://sysid.github.io/)"
+starlette,PyPI,BSD-3-Clause,"Copyright © 2018, Encode OSS Ltd."
+tqdm,PyPI,MIT,Copyright Casper da Costa-Luis
+typing-inspection,PyPI,MIT,Copyright (c) Pydantic Services Inc. 2025 to present
+uritemplate,PyPI,Apache-2.0,Copyright Ian Stapleton Cordasco
+urllib3,PyPI,MIT,Copyright (c) 2008-2020 Andrey Petrov and contributors
+uvicorn,PyPI,BSD-3-Clause,"Copyright © 2017-present, Encode OSS Ltd"
+Werkzeug,PyPI,BSD-3-Clause,Copyright 2007 Pallets
+yarl,PyPI,Apache-2.0,Copyright aio-libs contributors
 tailwindcss,npm,MIT,"Copyright (c) Tailwind Labs, Inc."
 vitejs,npm,MIT,"Copyright (c) 2019-present, VoidZero Inc. and Vite contributors"
 eslint/json,npm,Apache-2.0,Copyright ESLint
