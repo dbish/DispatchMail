@@ -17,7 +17,7 @@
   <img src="assets/screenshot.png" alt="DispatchMail Screenshot" width="800">
 </p>
 
-DispatchMail is an open source locally run (though currently using OpenAI for queries) AI-powered email assistant that helps you manage your inbox. It monitors your email, processes it with an AI agent based on your prompts, and provides a (locally run) web interface for managing drafts/responses, and instructions.
+[DispatchMail](https://www.youtube.com/watch?v=udvR9OzmmIw) is an open source locally run (though currently using OpenAI for queries) AI-powered email assistant that helps you manage your inbox. It monitors your email, processes it with an AI agent based on your prompts, and provides a (locally run) web interface for managing drafts/responses, and instructions.
 
 ## Features
 
