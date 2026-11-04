@@ -83,6 +83,10 @@ Long run, we want to not just give AI Agents a place to work in your inbox, but 
 
 5. Open http://localhost:5173 in your browser and set up your email account
 
+## One-Click Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/DispatchMail/)
+
 ## Manual Setup
 
 If you prefer to set up manually:
